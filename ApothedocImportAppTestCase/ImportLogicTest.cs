@@ -1,5 +1,6 @@
 using ApothedocImportLib.DataItem;
 using ApothedocImportLib.Logic;
+using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
 
 namespace ApothedocImportAppTestCase
@@ -102,6 +103,20 @@ namespace ApothedocImportAppTestCase
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails)}");
+        }
+
+        [TestMethod]
+        public async Task ReadUserMappingsFile()
+        {
+            UserMappingUtil util = new();
+
+            var mappings = util.LoadJsonFile();
+
+            Assert.IsNotNull(mappings);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(mappings)}");
+
         }
     }
 }

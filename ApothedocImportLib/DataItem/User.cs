@@ -20,4 +20,9 @@ namespace ApothedocImportLib.DataItem
         public int TargetId { get; set; }
     }
 
+    public class UserIdMappingWrapper
+    {
+        public List<UserIdMapping>? Mappings { get; set; }
+    }
+
 }
