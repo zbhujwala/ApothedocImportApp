@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace ApothedocImportLib.Utils
 {
-    public class UserMappingUtil
+    public static class UserMappingUtil
     {
-        public List<UserIdMapping> LoadJsonFile()
+        public static List<UserIdMapping> LoadJsonFile()
         {
             string resourceName = "ApothedocImportLib.conf.user-mapping.json";
 
@@ -34,5 +34,27 @@ namespace ApothedocImportLib.Utils
 
             return userMappings.Mappings;
         }
+
+        public static List<CareSession> MapCareSessionUsers(List<CareSession> careSessions, List<User> targetUserList, List<UserIdMapping> mappings)
+        {
+            careSessions.ForEach(c =>
+            {
+                var sourceProviderId = c.PerformedBy.id;
+                var targetProviderId = mappings.Find(u => u.SourceId == sourceProviderId).TargetId;
+                var targetProvider = targetUserList.Find(u => u.id == targetProviderId);
+
+                c.PerformedBy = targetProvider;
+
+                var sourceSubmitterId = c.SubmittedBy.id;
+                var targetSubmitterId = mappings.Find(u => u.SourceId == sourceSubmitterId).TargetId;
+                var targetSubmitter = targetUserList.Find(u => u.id == targetSubmitterId);
+
+                c.SubmittedBy = targetSubmitter;
+
+            });
+
+            return careSessions;
+        }
+
     }
 }

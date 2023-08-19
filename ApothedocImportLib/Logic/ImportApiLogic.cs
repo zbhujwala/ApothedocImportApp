@@ -95,27 +95,32 @@ namespace ApothedocImportLib.Logic
                     if (enrollmentStatus.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                        // TODO: Need to do provider/submitter mapping before posting
                         await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                        // TODO: Need to do provider/submitter mapping before posting
                         await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                        // TODO: Need to do provider/submitter mapping before posting
                         await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                        // TODO: Need to do provider/submitter mapping before posting
                         await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post the care sessions after we confirmed the patient ID in the destination clinic
                     foreach (var careSession in careSessions)
                     {
+                        // TODO: Need to do provider/submitter mapping before posting
                         await PostCareSessionToClinic(careSession, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                 }
