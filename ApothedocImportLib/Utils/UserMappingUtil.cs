@@ -39,15 +39,15 @@ namespace ApothedocImportLib.Utils
         {
             careSessions.ForEach(c =>
             {
-                var sourceProviderId = c.PerformedBy.id;
+                var sourceProviderId = c.PerformedBy.Id;
                 var targetProviderId = mappings.Find(u => u.SourceId == sourceProviderId).TargetId;
-                var targetProvider = targetUserList.Find(u => u.id == targetProviderId);
+                var targetProvider = targetUserList.Find(u => u.Id == targetProviderId);
 
                 c.PerformedBy = targetProvider;
 
-                var sourceSubmitterId = c.SubmittedBy.id;
+                var sourceSubmitterId = c.SubmittedBy.Id;
                 var targetSubmitterId = mappings.Find(u => u.SourceId == sourceSubmitterId).TargetId;
-                var targetSubmitter = targetUserList.Find(u => u.id == targetSubmitterId);
+                var targetSubmitter = targetUserList.Find(u => u.Id == targetSubmitterId);
 
                 c.SubmittedBy = targetSubmitter;
 
@@ -59,15 +59,15 @@ namespace ApothedocImportLib.Utils
         public static Enrollment MapEnrollmentUserInfo(Enrollment enrollment, List<User> targetUserList, List<UserIdMapping> mappings)
         {
 
-            var sourcePrimaryClinicianId = enrollment.PrimaryClinician.id;
+            var sourcePrimaryClinicianId = enrollment.PrimaryClinician.Id;
             var targetPrimaryClinicianId = mappings.Find(u => u.SourceId == sourcePrimaryClinicianId).TargetId;
-            var targetPrimaryClinician = targetUserList.Find(u => u.id == targetPrimaryClinicianId);
+            var targetPrimaryClinician = targetUserList.Find(u => u.Id == targetPrimaryClinicianId);
 
             enrollment.PrimaryClinician = targetPrimaryClinician;
 
-            var sourceSpecialistId = enrollment.Specialist.id;
+            var sourceSpecialistId = enrollment.Specialist.Id;
             var targetSpecialistId = mappings.Find(u => u.SourceId == sourceSpecialistId).TargetId;
-            var targetSpecialist = targetUserList.Find(u => u.id == targetSpecialistId);
+            var targetSpecialist = targetUserList.Find(u => u.Id == targetSpecialistId);
 
             enrollment.Specialist = targetSpecialist;
 

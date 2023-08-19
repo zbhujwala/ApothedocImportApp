@@ -2,15 +2,17 @@ namespace ApothedocImportLib.Logic
 {
     public class BaseLogic
     {
-        
-        public BaseLogic(){}
+
+        public BaseLogic()
+        {
+        }
 
         public static void LogInfo(string message)
         {
             ConsoleColor originalColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.WriteLine(message);
-            Console.ForegroundColor = originalColor;    
+            Console.ForegroundColor = originalColor;
         }
 
         public static void LogDebug(string message)
@@ -18,7 +20,7 @@ namespace ApothedocImportLib.Logic
             ConsoleColor originalColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine(message);
-            Console.ForegroundColor = originalColor;    
+            Console.ForegroundColor = originalColor;
         }
 
         public static void LogWarning(string message)
@@ -34,7 +36,7 @@ namespace ApothedocImportLib.Logic
             ConsoleColor originalColor = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(message);
-            Console.ForegroundColor = originalColor;    
+            Console.ForegroundColor = originalColor;
         }
 
     }

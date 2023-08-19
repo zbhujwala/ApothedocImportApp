@@ -137,14 +137,14 @@ namespace ApothedocImportAppTestCase
                 PerformedOn = "2023-06-11T00:00:00.000Z",
                 SubmittedAt = "2023-07-02T07:30:42.000Z",
                 PerformedBy = new User {
-                    id = 1,
-                    firstName = "Anish",
-                    lastName = "Bhatt"
+                    Id = 1,
+                    FirstName = "Anish",
+                    LastName = "Bhatt"
                 },
                 SubmittedBy = new User {
-                    id = 32,
-                    firstName = "Zaid",
-                    lastName = "Bhujwala"
+                    Id = 32,
+                    FirstName = "Zaid",
+                    LastName = "Bhujwala"
                 },
                 CareNote = "adding 1 more min of CCM time.",
                 ComplexCare = 0,
@@ -153,15 +153,13 @@ namespace ApothedocImportAppTestCase
                 MatchedSubmittedPerformedAt = false
             };
 
-            List<CareSession> sourceCareSessionList = new();
-            sourceCareSessionList.Add(sourceCareSession);
+            List<CareSession> sourceCareSessionList = new() { sourceCareSession };
 
             var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
 
             var transformedList = UserMappingUtil.MapCareSessionUserInfo(sourceCareSessionList, targetUserList, mappings);
 
             Assert.IsNotNull(transformedList);
-
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedList)}");
@@ -182,16 +180,16 @@ namespace ApothedocImportAppTestCase
                 VerbalAgreement = true,
                 PrimaryClinician = new User()
                 {
-                    id = 3,
-                    firstName = "Jessica",
-                    lastName = "Gustin"
+                    Id = 3,
+                    FirstName = "Jessica",
+                    LastName = "Gustin"
                 },
                 EnrolledSameDayOfficeVisit = 0,
                 Specialist = new User()
                 {
-                    id = 23,
-                    firstName = "anish devtest",
-                    lastName = "b"
+                    Id = 23,
+                    FirstName = "anish devtest",
+                    LastName = "b"
                 }
             };
 
@@ -200,7 +198,6 @@ namespace ApothedocImportAppTestCase
             var transformedEnrollment = UserMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetUserList, mappings);
 
             Assert.IsNotNull(transformedEnrollment);
-
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment)}");

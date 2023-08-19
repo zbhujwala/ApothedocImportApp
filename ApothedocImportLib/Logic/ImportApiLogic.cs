@@ -567,12 +567,12 @@ namespace ApothedocImportLib.Logic
             try
             {
                 var serializedUser = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(user.id.ToString()))
-                    serializedUser.Append($"\"id\":\"{user.id.ToString()}\",");
-                if (!string.IsNullOrEmpty(user.firstName))
-                    serializedUser.Append($"\"firstName\":\"{user.firstName}\",");
-                if (!string.IsNullOrEmpty(user.lastName))
-                    serializedUser.Append($"\"lastName\":\"{user.lastName}\",");
+                if (!string.IsNullOrEmpty(user.Id.ToString()))
+                    serializedUser.Append($"\"id\":\"{user.Id.ToString()}\",");
+                if (!string.IsNullOrEmpty(user.FirstName))
+                    serializedUser.Append($"\"firstName\":\"{user.FirstName}\",");
+                if (!string.IsNullOrEmpty(user.LastName))
+                    serializedUser.Append($"\"lastName\":\"{user.LastName}\",");
 
                 if (serializedUser.Length > 1)
                     serializedUser.Length--;
