@@ -157,7 +157,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    PatientWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<PatientWrapper>(content, options);
+                    PatientListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<PatientListWrapper>(content, options);
 
                     // Console.WriteLine($">>> Successfully retrieved all patient data for OrgId: {orgId} and ClinicId: {clinicId}");
 
@@ -316,6 +316,43 @@ namespace ApothedocImportLib.Logic
             }
         }
 
+        public async Task<Provider> TryGetProviderById(string providerId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                using HttpClient client = new();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/provider/list?type=primaryClinician");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
+
+                    var provider = wrapper.Providers.Find(provider => provider.id.ToString() == providerId);
+
+                    return provider;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for TryGetProviderById");
+                }
+
+            }
+            catch (Exception)
+            {
+                LogError(">>> TryGetProviderById failed");
+                throw;
+            }
+        }
 
         public async Task<string?> PostPatientToClinic(Patient patient, string destOrgId, string destClinicId, string destAuthToken)
         {
@@ -352,9 +389,9 @@ namespace ApothedocImportLib.Logic
                     var content = await resp.Content.ReadAsStringAsync();
 
                     // Console.WriteLine($">>> Successfully posted PatientId {patient.Id} to OrgId: {destOrgId} and ClinicId: {destClinicId}");
-                    PatientGetWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<PatientGetWrapper>(content, options);
+                    PatientCreateResponse patientCreateResponse = System.Text.Json.JsonSerializer.Deserialize<PatientCreateResponse>(content, options);
 
-                    return wrapper?.PatientId?.ToString();
+                    return patientCreateResponse?.PatientId?.ToString();
                 }
                 else if (resp.StatusCode == HttpStatusCode.Conflict)
                 {

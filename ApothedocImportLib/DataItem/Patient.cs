@@ -22,14 +22,14 @@ namespace ApothedocImportLib.DataItem
 
     }
 
-    public class PatientWrapper
+    public class PatientListWrapper
     {
         public List<Patient>? Patients { get; set; }
     }
 
-    public class PatientGetWrapper
+    public class PatientCreateResponse
     {
-        public Boolean? Success { get; set; }
+        public bool? Success { get; set; }
 
         public int? PatientId { get; set; }
     }

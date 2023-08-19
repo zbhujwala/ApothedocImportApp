@@ -36,6 +36,18 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
+        public async Task TestVerifyGetProvider()
+        {
+            string providerId = "1";
+
+            var provider = await logic.TryGetProviderById(providerId, orgId, clinicid, authToken);
+
+            Assert.IsTrue(provider != null);
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(provider)}");
+        }
+
+        [TestMethod]
         public async Task TestGetPatientCareSessions()
         {
             patientId = "1";
@@ -59,10 +71,10 @@ namespace ApothedocImportAppTestCase
             Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentStatus)}");
         }
 
+        // Get CCM
         [TestMethod]
         public async Task TestGetPatientEnrollmentDetailsCCM()
         {
-            // Get CCM
             var enrollmentDetails = await logic.GetPatientEnrollmentDetails("ccm", orgId, clinicid, patientId, authToken);
 
             Assert.IsNotNull(enrollmentDetails);

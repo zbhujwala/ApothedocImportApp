@@ -8,4 +8,9 @@ namespace ApothedocImportLib.DataItem
         public string lastName { get; set; }
 
     }
+
+    public class ProviderListWrapper
+    {
+        public List<Provider>? Providers { get; set; }
+    }
 }
