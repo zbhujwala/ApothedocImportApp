@@ -316,7 +316,7 @@ namespace ApothedocImportLib.Logic
             }
         }
 
-        public async Task<Provider> TryGetProviderById(string providerId, string orgId, string clinicId, string authToken)
+        public async Task<User> TryGetProviderById(string providerId, string orgId, string clinicId, string authToken)
         {
             try
             {
@@ -335,9 +335,9 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
+                    UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
 
-                    var provider = wrapper.Providers.Find(provider => provider.id.ToString() == providerId);
+                    var provider = wrapper.User.Find(provider => provider.id.ToString() == providerId);
 
                     return provider;
                 }
@@ -547,7 +547,7 @@ namespace ApothedocImportLib.Logic
                 if (!string.IsNullOrEmpty(careSession.PerformedOn))
                     serializedCareSession.Append($"\"performedOn\":\"{careSession.PerformedOn}\",");
                 if (careSession.PerformedBy != null)
-                    serializedCareSession.Append($"\"performedBy\": {SerializeProvider(careSession.PerformedBy)},");
+                    serializedCareSession.Append($"\"performedBy\": {SerializeUser(careSession.PerformedBy)},");
                 if (!string.IsNullOrEmpty(careSession.CareNote))
                     serializedCareSession.Append($"\"careNote\":\"{careSession.CareNote}\",");
                 if (careSession.ComplexCare != null)
@@ -568,49 +568,24 @@ namespace ApothedocImportLib.Logic
             }
         }
 
-        private static string SerializeProvider(Provider provider)
+        private static string SerializeUser(User user)
         {
             try
             {
-                var serializedProvider = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(provider.id.ToString()))
-                    serializedProvider.Append($"\"id\":\"{provider.id.ToString()}\",");
-                if (!string.IsNullOrEmpty(provider.firstName))
-                    serializedProvider.Append($"\"firstName\":\"{provider.firstName}\",");
-                if (!string.IsNullOrEmpty(provider.lastName))
-                    serializedProvider.Append($"\"lastName\":\"{provider.lastName}\",");
+                var serializedUser = new StringBuilder("{");
+                if (!string.IsNullOrEmpty(user.id.ToString()))
+                    serializedUser.Append($"\"id\":\"{user.id.ToString()}\",");
+                if (!string.IsNullOrEmpty(user.firstName))
+                    serializedUser.Append($"\"firstName\":\"{user.firstName}\",");
+                if (!string.IsNullOrEmpty(user.lastName))
+                    serializedUser.Append($"\"lastName\":\"{user.lastName}\",");
 
-                if (serializedProvider.Length > 1)
-                    serializedProvider.Length--;
+                if (serializedUser.Length > 1)
+                    serializedUser.Length--;
 
-                serializedProvider.Append('}');
+                serializedUser.Append('}');
 
-                return serializedProvider.ToString();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private static string SerializeSpecialist(Specialist specialist)
-        {
-            try
-            {
-                var serializedProvider = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(specialist.id.ToString()))
-                    serializedProvider.Append($"\"id\":\"{specialist.id.ToString()}\",");
-                if (!string.IsNullOrEmpty(specialist.firstName))
-                    serializedProvider.Append($"\"firstName\":\"{specialist.firstName}\",");
-                if (!string.IsNullOrEmpty(specialist.lastName))
-                    serializedProvider.Append($"\"lastName\":\"{specialist.lastName}\",");
-
-                if (serializedProvider.Length > 1)
-                    serializedProvider.Length--;
-
-                serializedProvider.Append('}');
-
-                return serializedProvider.ToString();
+                return serializedUser.ToString();
             }
             catch (Exception)
             {
@@ -634,9 +609,9 @@ namespace ApothedocImportLib.Logic
                 if (enrollment.VerbalAgreement != null)
                     serializedEnrollment.Append($"\"verbalAgreement\":\"{enrollment.VerbalAgreement}\",");
                 if (enrollment.PrimaryClinician != null)
-                    serializedEnrollment.Append($"\"primaryClinician\":\"{SerializeProvider(enrollment.PrimaryClinician)}\",");
+                    serializedEnrollment.Append($"\"primaryClinician\":\"{SerializeUser(enrollment.PrimaryClinician)}\",");
                 if (enrollment.Specialist != null)
-                    serializedEnrollment.Append($"\"specialist\":\"{SerializeSpecialist(enrollment.Specialist)}\",");
+                    serializedEnrollment.Append($"\"specialist\":\"{SerializeUser(enrollment.Specialist)}\",");
                 if (!string.IsNullOrEmpty(enrollment.EquipmentSetupAndEducation))
                     serializedEnrollment.Append($"\"equipmentSetupAndEducation\":\"{enrollment.EquipmentSetupAndEducation}\",");
                 if (enrollment.EnrolledSameDayOfficeVisit != null)

@@ -13,8 +13,8 @@ namespace ApothedocImportLib.DataItem
         public string? InformationSheet { get; set; }   // Date string
         public string? PatientAgreement { get; set; }   // Date string
         public bool? VerbalAgreement { get; set; }
-        public Provider? PrimaryClinician { get; set; }
-        public Specialist? Specialist { get; set; }
+        public User? PrimaryClinician { get; set; }
+        public User? Specialist { get; set; }
         public string? EquipmentSetupAndEducation { get; set; }     // RPM Specfic
         public int? EnrolledSameDayOfficeVisit { get; set; }      // CCM specific, bool integer
     }
