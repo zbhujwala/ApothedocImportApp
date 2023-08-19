@@ -36,11 +36,9 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestVerifyGetProvider()
+        public async Task TestGetUsers()
         {
-            string providerId = "1";
-
-            var provider = await logic.TryGetProviderById(providerId, orgId, clinicid, authToken);
+            var provider = await logic.GetUserList(orgId, authToken);
 
             Assert.IsTrue(provider != null);
             Console.WriteLine($"Response:");

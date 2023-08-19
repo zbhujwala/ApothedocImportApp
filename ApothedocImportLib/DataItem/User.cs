@@ -11,6 +11,13 @@ namespace ApothedocImportLib.DataItem
 
     public class UserListWrapper
     {
-        public List<User>? User { get; set; }
+        public List<User>? Users { get; set; }
     }
+
+    public class UserIdMapping
+    { 
+        public int SourceId { get; set; }
+        public int TargetId { get; set; }
+    }
+
 }

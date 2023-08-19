@@ -62,8 +62,8 @@ namespace ApothedocImportLib.Logic
 
                     if (patientInfoRecord.Item2.Rpm == true) enrollmentCount++;
                     if (patientInfoRecord.Item2.Ccm == true) enrollmentCount++;
-                    if(patientInfoRecord.Item2.Bhi == true) enrollmentCount++;
-                    if(patientInfoRecord.Item2.Pcm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item2.Bhi == true) enrollmentCount++;
+                    if (patientInfoRecord.Item2.Pcm == true) enrollmentCount++;
                 }
 
                 LogDebug($">>> Successfully retrieved {sourcePatientList.Count} patients, {careSessionCount} care sessions, and {enrollmentCount} unique enrollments from OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}.");
@@ -316,41 +316,30 @@ namespace ApothedocImportLib.Logic
             }
         }
 
-        public async Task<User> TryGetProviderById(string providerId, string orgId, string clinicId, string authToken)
+        public async Task<List<User>> GetUserList(string orgId, string authToken)
         {
-            try
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/user/list");
+
+            if (response.IsSuccessStatusCode)
             {
-                using HttpClient client = new();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/provider/list?type=primaryClinician");
-
-                if (response.IsSuccessStatusCode)
+                JsonSerializerOptions options = new()
                 {
-                    JsonSerializerOptions options = new()
-                    {
-                        PropertyNameCaseInsensitive = true
-                    };
+                    PropertyNameCaseInsensitive = true
+                };
 
-                    var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync();
 
-                    UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
+                UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
 
-                    var provider = wrapper.User.Find(provider => provider.id.ToString() == providerId);
-
-                    return provider;
-                }
-                else
-                {
-                    throw new Exception($">>> Non-success HTTP Response code for TryGetProviderById");
-                }
-
+                return wrapper.Users;
             }
-            catch (Exception)
+            else
             {
-                LogError(">>> TryGetProviderById failed");
-                throw;
+                throw new Exception($">>> Non-success HTTP Response code for TryGetProviderById");
             }
         }
 
