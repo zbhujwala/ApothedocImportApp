@@ -35,7 +35,7 @@ namespace ApothedocImportLib.Utils
             return userMappings.Mappings;
         }
 
-        public static List<CareSession> MapCareSessionUsers(List<CareSession> careSessions, List<User> targetUserList, List<UserIdMapping> mappings)
+        public static List<CareSession> MapCareSessionUserInfo(List<CareSession> careSessions, List<User> targetUserList, List<UserIdMapping> mappings)
         {
             careSessions.ForEach(c =>
             {
@@ -54,6 +54,24 @@ namespace ApothedocImportLib.Utils
             });
 
             return careSessions;
+        }
+
+        public static Enrollment MapEnrollmentUserInfo(Enrollment enrollment, List<User> targetUserList, List<UserIdMapping> mappings)
+        {
+
+            var sourcePrimaryClinicianId = enrollment.PrimaryClinician.id;
+            var targetPrimaryClinicianId = mappings.Find(u => u.SourceId == sourcePrimaryClinicianId).TargetId;
+            var targetPrimaryClinician = targetUserList.Find(u => u.id == targetPrimaryClinicianId);
+
+            enrollment.PrimaryClinician = targetPrimaryClinician;
+
+            var sourceSpecialistId = enrollment.Specialist.id;
+            var targetSpecialistId = mappings.Find(u => u.SourceId == sourceSpecialistId).TargetId;
+            var targetSpecialist = targetUserList.Find(u => u.id == targetSpecialistId);
+
+            enrollment.Specialist = targetSpecialist;
+
+            return enrollment;
         }
 
     }

@@ -124,7 +124,7 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestMapCareSessionProviderAndSubmitter()
+        public async Task TestMapCareSessionUserInfo()
         {
             var mappings = UserMappingUtil.LoadJsonFile();
 
@@ -158,7 +158,7 @@ namespace ApothedocImportAppTestCase
 
             var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
 
-            var transformedList = UserMappingUtil.MapCareSessionUsers(sourceCareSessionList, targetUserList, mappings);
+            var transformedList = UserMappingUtil.MapCareSessionUserInfo(sourceCareSessionList, targetUserList, mappings);
 
             Assert.IsNotNull(transformedList);
 
@@ -166,6 +166,44 @@ namespace ApothedocImportAppTestCase
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedList)}");
 
+        }
+
+        [TestMethod]
+        public async Task TestMapEnrollmentUserInfo()
+        {
+            var mappings = UserMappingUtil.LoadJsonFile();
+
+            var sourceEnrollment = new Enrollment()
+            {
+                EnrollmentDate = "2023-02-06T00:00:00.000Z",
+                CancellationDate = null,
+                InformationSheet = "2023-02-06T00:00:00.000Z",
+                PatientAgreement = "2023-02-06T00:00:00.000Z",
+                VerbalAgreement = true,
+                PrimaryClinician = new User()
+                {
+                    id = 3,
+                    firstName = "Jessica",
+                    lastName = "Gustin"
+                },
+                EnrolledSameDayOfficeVisit = 0,
+                Specialist = new User()
+                {
+                    id = 23,
+                    firstName = "anish devtest",
+                    lastName = "b"
+                }
+            };
+
+            var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
+
+            var transformedEnrollment = UserMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetUserList, mappings);
+
+            Assert.IsNotNull(transformedEnrollment);
+
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment)}");
         }
     }
 }
