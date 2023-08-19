@@ -19,6 +19,7 @@ namespace ApothedocImportAppTestCase
             resourceApi = "https://dev.apothedoc.com/api/";
             orgId = "1";
             clinicid = "1";
+            // Replace this for each session
             authToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkyNDY4MzgxLCJleHAiOjE2OTI1MTE1ODF9.jV1RM8VrqiCtFQVvO4lInZeCcyXMhQ8Xw5PWGAIIbWI";
             logic = new(resourceApi);
         }
