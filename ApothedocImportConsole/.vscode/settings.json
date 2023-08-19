@@ -1,0 +1,4 @@
+{
+    "editor.suggest.insertMode": "insert",
+    "dotnet.defaultSolution": "ApothedocImportConsole.sln"
+}

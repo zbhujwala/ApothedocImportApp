@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.001.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApothedocImportConsole", "ApothedocImportConsole.csproj", "{79B5CC2B-7289-4FED-8C29-B977051194E6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApothedocImportLib", "..\ApothedocImportLib\ApothedocImportLib.csproj", "{92FA0E3D-FD64-40E4-B0C7-FAF7E56E70A6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApothedocImportAppTestCase", "..\ApothedocImportAppTestCase\ApothedocImportAppTestCase.csproj", "{206264CE-D8AE-4EB9-8F37-A180ECB80AC2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{79B5CC2B-7289-4FED-8C29-B977051194E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79B5CC2B-7289-4FED-8C29-B977051194E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79B5CC2B-7289-4FED-8C29-B977051194E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79B5CC2B-7289-4FED-8C29-B977051194E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92FA0E3D-FD64-40E4-B0C7-FAF7E56E70A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92FA0E3D-FD64-40E4-B0C7-FAF7E56E70A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92FA0E3D-FD64-40E4-B0C7-FAF7E56E70A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92FA0E3D-FD64-40E4-B0C7-FAF7E56E70A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{206264CE-D8AE-4EB9-8F37-A180ECB80AC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{206264CE-D8AE-4EB9-8F37-A180ECB80AC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{206264CE-D8AE-4EB9-8F37-A180ECB80AC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{206264CE-D8AE-4EB9-8F37-A180ECB80AC2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {00C0DCD2-FDE8-4A77-8573-375EB074F72B}
+	EndGlobalSection
+EndGlobal
