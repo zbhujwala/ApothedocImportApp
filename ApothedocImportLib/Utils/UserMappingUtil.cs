@@ -1,5 +1,6 @@
 ﻿using ApothedocImportLib.DataItem;
 using ApothedocImportLib.Logic;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace ApothedocImportLib.Utils
 {
-    public class UserMappingUtil : BaseLogic
+    public class UserMappingUtil
     {
         public UserMappingUtil()
         {
@@ -53,10 +54,10 @@ namespace ApothedocImportLib.Utils
 
                     if (targetProvider == null)
                     {
-                        LogWarning($">>> Mapping issue for care session of source ID: {c.Id}");
-                        LogWarning($">>> Unable to map provider {c.PerformedBy?.FirstName} {c.PerformedBy?.LastName} with provider ID of {c.PerformedBy?.Id} to new clinic.");
-                        LogWarning($">>> Setting provider for care session to null");
-                        LogWarning($">>> Please ensure mapping for provider exists and user is a provider in target clinic");
+                        Log.Warning($">>> Mapping issue for care session of source ID: {c.Id}");
+                        Log.Warning($">>> Unable to map provider {c.PerformedBy?.FirstName} {c.PerformedBy?.LastName} with provider ID of {c.PerformedBy?.Id} to new clinic.");
+                        Log.Warning($">>> Setting provider for care session to null");
+                        Log.Warning($">>> Please ensure mapping for provider exists and user is a provider in target clinic");
                     }
 
                     c.PerformedBy = targetProvider;
@@ -67,10 +68,10 @@ namespace ApothedocImportLib.Utils
 
                     if (targetSubmitter == null)
                     {
-                        LogWarning($">>> Mapping issue for care session of source ID: {c.Id}");
-                        LogWarning($">>> Unable to map submitter {c.SubmittedBy?.FirstName} {c.SubmittedBy?.LastName} with user ID of {c.SubmittedBy?.Id} to new clinic.");
-                        LogWarning($">>> Setting submitter for care session to null");
-                        LogWarning($">>> Please ensure mapping for submitter exists");
+                        Log.Warning($">>> Mapping issue for care session of source ID: {c.Id}");
+                        Log.Warning($">>> Unable to map submitter {c.SubmittedBy?.FirstName} {c.SubmittedBy?.LastName} with user ID of {c.SubmittedBy?.Id} to new clinic.");
+                        Log.Warning($">>> Setting submitter for care session to null");
+                        Log.Warning($">>> Please ensure mapping for submitter exists");
                     }
 
                     c.SubmittedBy = targetSubmitter;
@@ -78,7 +79,7 @@ namespace ApothedocImportLib.Utils
 
             }
             catch(Exception ex) {
-                LogError($">>> Error while mapping care session providers and submitters: {ex.Message}");
+                Log.Error($">>> Error while mapping care session providers and submitters: {ex.Message}");
             }
 
             return careSessions;
@@ -93,10 +94,10 @@ namespace ApothedocImportLib.Utils
 
             if (targetPrimaryClinician == null)
             {
-                LogWarning($">>> Mapping issue for enrollment");
-                LogWarning($">>> Unable to map primary clinician {enrollment.PrimaryClinician?.FirstName} {enrollment.PrimaryClinician?.LastName} with clinician ID of {enrollment.PrimaryClinician?.Id} to new clinic.");
-                LogWarning($">>> Setting primary clinician to null");
-                LogWarning($">>> Please ensure mapping for user exists and user is either a clinician or org admin  in target clinic");
+                Log.Warning($">>> Mapping issue for enrollment");
+                Log.Warning($">>> Unable to map primary clinician {enrollment.PrimaryClinician?.FirstName} {enrollment.PrimaryClinician?.LastName} with clinician ID of {enrollment.PrimaryClinician?.Id} to new clinic.");
+                Log.Warning($">>> Setting primary clinician to null");
+                Log.Warning($">>> Please ensure mapping for user exists and user is either a clinician or org admin  in target clinic");
             }
 
             enrollment.PrimaryClinician = targetPrimaryClinician;
@@ -107,10 +108,10 @@ namespace ApothedocImportLib.Utils
 
             if (targetSpecialist == null)
             {
-                LogWarning($">>> Mapping issue for enrollment");
-                LogWarning($">>> Unable to map specialist {enrollment.Specialist?.FirstName} {enrollment.Specialist?.LastName} with specialist ID of {enrollment.Specialist?.Id} to new clinic.");
-                LogWarning($">>> Setting specialist to null");
-                LogWarning($">>> Please ensure mapping for user exists");
+                Log.Warning($">>> Mapping issue for enrollment");
+                Log.Warning($">>> Unable to map specialist {enrollment.Specialist?.FirstName} {enrollment.Specialist?.LastName} with specialist ID of {enrollment.Specialist?.Id} to new clinic.");
+                Log.Warning($">>> Setting specialist to null");
+                Log.Warning($">>> Please ensure mapping for user exists");
             }
 
             enrollment.Specialist = targetSpecialist;

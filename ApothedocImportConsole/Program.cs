@@ -1,4 +1,9 @@
 ﻿using ApothedocImportLib.Logic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Sinks.SystemConsole.Themes;
 
 class Program
 {
@@ -7,6 +12,14 @@ class Program
     {
         try
         {
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console(theme: AnsiConsoleTheme.Code)
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+                .WriteTo.File("debug.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug)
+                .WriteTo.File("error.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning)
+                .CreateLogger();
+
             Console.WriteLine("Enter Resource API (ex: \"https://dev.apothedoc.com/api/\")");
             var resourceApi = Console.ReadLine();
 

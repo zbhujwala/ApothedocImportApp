@@ -1,6 +1,7 @@
 ﻿using ApothedocImportLib.DataItem;
 using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
+using Serilog;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -8,7 +9,7 @@ using System.Text.Json;
 
 namespace ApothedocImportLib.Logic
 {
-    public class ImportApiLogic : BaseLogic
+    public class ImportApiLogic
     {
         #region Constructor and Members
         private static string _resourceApi = "";
@@ -33,8 +34,8 @@ namespace ApothedocImportLib.Logic
 
                 Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
 
-                LogDebug($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
-                LogDebug($">>> Getting patient list for clinic...");
+                Log.Debug($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
+                Log.Debug($">>> Getting patient list for clinic...");
                 loadingIndicator.Start();
 
                 // Grab the patient list from both source and destination. If the patient is already in the destination, we will want the Patient Id so we can transfer over care sessions from source location
@@ -46,14 +47,14 @@ namespace ApothedocImportLib.Logic
 
                 var mappings = userMappingUtil.LoadJsonFile();
 
-                LogDebug($">>> Successfully retrieved patient list");
-                LogDebug($">>> Getting care sessions for patients...");
+                Log.Debug($">>> Successfully retrieved patient list");
+                Log.Debug($">>> Getting care sessions for patients...");
 
                 // After we have retrieved all the patients from the source location, start grabbing their care sessions and enrollments and put them in a map
                 foreach (var patient in sourcePatientList)
                 {
                     var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                    Thread.Sleep(1000); // Testing to see if rapid succession API calls causes socketing connection issues
+                    Thread.Sleep(500); // Testing to see if rapid succession API calls causes socketing connection issues
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
@@ -72,8 +73,8 @@ namespace ApothedocImportLib.Logic
                     if (patientInfoRecord.Item2.Pcm == true) enrollmentCount++;
                 }
 
-                LogDebug($">>> Successfully retrieved {sourcePatientList.Count} patients, {careSessionCount} care sessions, and {enrollmentCount} unique enrollments from OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}.");
-                LogDebug($">>> Attempting to post data to OrgId: {destOrgId} and ClinicId: {destClinicId}");
+                Log.Debug($">>> Successfully retrieved {sourcePatientList.Count} patients, {careSessionCount} care sessions, and {enrollmentCount} unique enrollments from OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}.");
+                Log.Debug($">>> Attempting to post data to OrgId: {destOrgId} and ClinicId: {destClinicId}");
 
                 // Time to start pushing up to destination location
 
@@ -134,15 +135,15 @@ namespace ApothedocImportLib.Logic
 
                 loadingIndicator.Interrupt();
 
-                LogDebug($">>> Successfully posted patients and care sessions to OrgId: {destOrgId}, ClinicId: {destClinicId}");
+                Log.Debug($">>> Successfully posted patients and care sessions to OrgId: {destOrgId}, ClinicId: {destClinicId}");
 
-                LogDebug($">>> Transfer clinic data process complete.");
+                Log.Debug($">>> Transfer clinic data process complete.");
             }
             catch (Exception ex)
             {
                 loadingIndicator.Interrupt();
-                LogError($">>> TransferClinicData failed.");
-                LogError(ex.Message);
+                Log.Error($">>> TransferClinicData failed.");
+                Log.Error(ex.Message);
             }
         }
 
@@ -237,7 +238,7 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                LogError(">>> GetPatientCareSessions failed.");
+                Log.Error(">>> GetPatientCareSessions failed.");
                 throw;
             }
         }
@@ -275,7 +276,7 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                LogError(">>> GetPatientEnrollmentStatus faild.");
+                Log.Error(">>> GetPatientEnrollmentStatus faild.");
                 throw;
             }
         }
@@ -322,7 +323,7 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                LogError(">>> GetPatientEnrollmentDetails faild.");
+                Log.Error(">>> GetPatientEnrollmentDetails faild.");
                 throw;
             }
         }
@@ -422,20 +423,20 @@ namespace ApothedocImportLib.Logic
                 else if (resp.StatusCode == HttpStatusCode.Conflict)
                 {
                     // User has already been migrated, grab the ID and continue with the process so we can attempt to get the care sessions...
-                    LogWarning($">>> Patient with same MRN exists in destination clinic as the one being migrated.");
+                    Log.Warning($">>> Patient with same MRN exists in destination clinic as the one being migrated.");
                     return null;
                 }
                 else
                 {
-                    LogError($">>> Failed to post PatientId {patient.Id} to OrgId: {destOrgId} and ClinicId: {destClinicId}");
-                    LogError(resp.StatusCode.ToString());
-                    LogError(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error($">>> Failed to post PatientId {patient.Id} to OrgId: {destOrgId} and ClinicId: {destClinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
                     return null;
                 }
             }
             catch (Exception)
             {
-                LogError(">>> PostPatientToClinic failed.");
+                Log.Error(">>> PostPatientToClinic failed.");
                 throw;
             }
         }
@@ -467,18 +468,18 @@ namespace ApothedocImportLib.Logic
                 }
                 else if (resp.StatusCode == HttpStatusCode.BadRequest)
                 {
-                    LogError(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
                 }
                 else
                 {
-                    LogError($">>> Failed to post care session for PatientId: {patientId}, CareSessionId: {careSession.Id}, OrgId: {orgId}, and ClinicId: {clinicId}.");
-                    LogError(resp.StatusCode.ToString());
-                    LogError(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error($">>> Failed to post care session for PatientId: {patientId}, CareSessionId: {careSession.Id}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
                 }
             }
             catch (Exception)
             {
-                LogError(">>> PostCareSessionToClinic failed.");
+                Log.Error(">>> PostCareSessionToClinic failed.");
                 throw;
             }
         }
@@ -504,18 +505,18 @@ namespace ApothedocImportLib.Logic
                 }
                 else if (resp.StatusCode == HttpStatusCode.BadRequest)
                 {
-                    LogError(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
                 }
                 else
                 {
                     Console.WriteLine($">>> Failed to post enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
-                    LogError(resp.StatusCode.ToString());
-                    LogError(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
                 }
             }
             catch (Exception)
             {
-                LogError(">>> PostEnrollmentsToClinic failed.");
+                Log.Error(">>> PostEnrollmentsToClinic failed.");
                 throw;
             }
         }
