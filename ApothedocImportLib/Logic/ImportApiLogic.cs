@@ -54,7 +54,7 @@ namespace ApothedocImportLib.Logic
                 foreach (var patient in sourcePatientList)
                 {
                     var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                    Thread.Sleep(1000); // Testing to see if rapid succession API calls causes socketing connection issues
+                    //Thread.Sleep(1000); // Testing to see if rapid succession API calls causes socketing connection issues
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
@@ -245,40 +245,64 @@ namespace ApothedocImportLib.Logic
 
         public async Task<EnrollmentStatus> GetPatientEnrollmentStatus(string orgId, string clinicId, string patientId, string sourceAuthToken)
         {
-            try
+            // This API call for some reason fails to go through on server side occasionally. Adding retry logic (up to 5 times) before erroring out
+            int maxRetryCount = 5;
+            int currentRetry = 0;
+
+            while (currentRetry < maxRetryCount) 
             {
-                using HttpClient client = new();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
-
-                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/enrollment/status");
-
-                if (response.IsSuccessStatusCode)
+                try
                 {
-                    JsonSerializerOptions options = new()
+                    using HttpClient client = new();
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
+
+                    HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/enrollment/status");
+
+                    if (response.IsSuccessStatusCode)
                     {
-                        PropertyNameCaseInsensitive = true
-                    };
+                        JsonSerializerOptions options = new()
+                        {
+                            PropertyNameCaseInsensitive = true
+                        };
 
-                    var content = await response.Content.ReadAsStringAsync();
+                        var content = await response.Content.ReadAsStringAsync();
 
-                    EnrollmentStatusWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentStatusWrapper>(content, options);
+                        EnrollmentStatusWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentStatusWrapper>(content, options);
 
-                    if (wrapper == null || wrapper.CurrentEnrollments == null)
-                        throw new Exception($">>> No enrollment status found for user");
+                        if (wrapper == null || wrapper.CurrentEnrollments == null)
+                            throw new Exception($">>> No enrollment status found for user");
 
-                    return wrapper.CurrentEnrollments;
+                        return wrapper.CurrentEnrollments;
+                    }
+                    else
+                    {
+                        throw new Exception($">>> Non-success HTTP Response code for GetPatientEnrollmentStatus");
+                    }
+                }
+                catch (HttpRequestException)
+                {
+                    Log.Warning($">>> GetPatientEnrollmentStatus API server connection failed. Retrying GET operation (current try: {currentRetry + 1})");
+                }
+                catch (Exception)
+                {
+                    Log.Error(">>> GetPatientEnrollmentStatus failed.");
+                    throw;
+                }
 
+                currentRetry++;
+
+                if(currentRetry < maxRetryCount)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1));
                 }
                 else
                 {
+                    Log.Error($">>> Max API retries for GetPatientEnrollmentStatus reached. Cancelling API request.");
                     throw new Exception($">>> Non-success HTTP Response code for GetPatientEnrollmentStatus");
                 }
             }
-            catch (Exception)
-            {
-                Log.Error(">>> GetPatientEnrollmentStatus faild.");
-                throw;
-            }
+
+            return null;
         }
 
         public async Task<Enrollment> GetPatientEnrollmentDetails(string enrollmentType, string orgId, string clinicId, string patientId, string sourceAuthToken)
