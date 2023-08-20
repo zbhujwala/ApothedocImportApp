@@ -1,4 +1,5 @@
 ﻿using ApothedocImportLib.DataItem;
+using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Headers;
@@ -9,11 +10,13 @@ namespace ApothedocImportLib.Logic
 {
     public class ImportApiLogic : BaseLogic
     {
+        #region Constructor and Members
         private static string _resourceApi = "";
         public ImportApiLogic(string resourceApi)
         {
             _resourceApi = resourceApi;
         }
+        #endregion
 
         public async Task TransferClinicDataAsync(
             string sourceOrgId,
@@ -26,10 +29,9 @@ namespace ApothedocImportLib.Logic
             Thread loadingIndicator = new(ConsoleSpinner.StartLoadingIndicator);
             try
             {
-                Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
+                UserMappingUtil userMappingUtil = new();
 
-                //Dictionary<Patient, List<CareSession>> patientCareSessionMap = new();
-                //Dictionary<Patient, EnrollmentStatus> patientEnrollmentMap = new();
+                Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
 
                 LogDebug($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
                 LogDebug($">>> Getting patient list for clinic...");
@@ -38,6 +40,11 @@ namespace ApothedocImportLib.Logic
                 // Grab the patient list from both source and destination. If the patient is already in the destination, we will want the Patient Id so we can transfer over care sessions from source location
                 var sourcePatientList = await GetPatientListForClinic(sourceOrgId, sourceClinicId, sourceAuthToken);
                 var destPatientList = await GetPatientListForClinic(destOrgId, destClinicId, destAuthToken);
+
+                var targetProvidersList = await GetProviderList(destOrgId, destClinicId, destAuthToken);
+                var targetUserList = await GetUserList(destOrgId, destAuthToken);
+
+                var mappings = userMappingUtil.LoadJsonFile();
 
                 LogDebug($">>> Successfully retrieved patient list");
                 LogDebug($">>> Getting care sessions for patients...");
@@ -48,8 +55,6 @@ namespace ApothedocImportLib.Logic
                     var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
-                    //patientCareSessionMap.Add(patient, patientCareSessions);
-                    //patientEnrollmentMap.Add(patient, patientEnrollment);
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
                 }
 
@@ -91,36 +96,36 @@ namespace ApothedocImportLib.Logic
 
                     }
 
-                    // Post enrollment status
+                    //// Post enrollment status
                     if (enrollmentStatus.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        // TODO: Need to do provider/submitter mapping before posting
+                        rpmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(rpmEnrollmentDetails, destClinicId, targetUserList, mappings);
                         await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        // TODO: Need to do provider/submitter mapping before posting
+                        ccmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(ccmEnrollmentDetails, destClinicId, targetUserList, mappings);
                         await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        // TODO: Need to do provider/submitter mapping before posting
+                        bhiEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(bhiEnrollmentDetails, destClinicId, targetUserList, mappings);
                         await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        // TODO: Need to do provider/submitter mapping before posting
+                        pcmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(pcmEnrollmentDetails, destClinicId, targetUserList, mappings);
                         await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post the care sessions after we confirmed the patient ID in the destination clinic
+                    careSessions = userMappingUtil.MapCareSessionProvidersAndSubmitters(careSessions, targetProvidersList, targetUserList, mappings);
                     foreach (var careSession in careSessions)
                     {
-                        // TODO: Need to do provider/submitter mapping before posting
                         await PostCareSessionToClinic(careSession, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                 }
@@ -348,6 +353,33 @@ namespace ApothedocImportLib.Logic
             }
         }
 
+        public async Task<List<Provider>> GetProviderList(string orgId, string clinicId, string authToken)
+        {
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/provider/list?type=providers");
+
+            if (response.IsSuccessStatusCode)
+            {
+                JsonSerializerOptions options = new()
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
+
+                return wrapper.Providers;
+            }
+            else
+            {
+                throw new Exception($">>> Non-success HTTP Response code for TryGetProviderById");
+            }
+        }
+
         public async Task<string?> PostPatientToClinic(Patient patient, string destOrgId, string destClinicId, string destAuthToken)
         {
             try
@@ -359,7 +391,6 @@ namespace ApothedocImportLib.Logic
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
                 // Make sure Patient Id is null here when we post it up
-                patient.Id = null;
 
                 var serializerSettings = new JsonSerializerSettings
                 {
@@ -435,7 +466,7 @@ namespace ApothedocImportLib.Logic
                 }
                 else if (resp.StatusCode == HttpStatusCode.BadRequest)
                 {
-                    LogError(resp.Content.ToString());
+                    LogError(resp.Content.ReadAsStringAsync().ToString());
                 }
                 else
                 {
@@ -541,7 +572,7 @@ namespace ApothedocImportLib.Logic
                 if (!string.IsNullOrEmpty(careSession.PerformedOn))
                     serializedCareSession.Append($"\"performedOn\":\"{careSession.PerformedOn}\",");
                 if (careSession.PerformedBy != null)
-                    serializedCareSession.Append($"\"performedBy\": {SerializeUser(careSession.PerformedBy)},");
+                    serializedCareSession.Append($"\"performedBy\": {SerializedProvider(careSession.PerformedBy)},");
                 if (!string.IsNullOrEmpty(careSession.CareNote))
                     serializedCareSession.Append($"\"careNote\":\"{careSession.CareNote}\",");
                 if (careSession.ComplexCare != null)
@@ -573,6 +604,14 @@ namespace ApothedocImportLib.Logic
                     serializedUser.Append($"\"firstName\":\"{user.FirstName}\",");
                 if (!string.IsNullOrEmpty(user.LastName))
                     serializedUser.Append($"\"lastName\":\"{user.LastName}\",");
+                if(!string.IsNullOrEmpty(user.Email))
+                    serializedUser.Append($"\"email\":\"{user.Email}\",");
+                if (user.Disabled != null)
+                    serializedUser.Append($"\"disabled\":\"{user.Disabled}\","); 
+                if (user.OrgAdmin != null)
+                    serializedUser.Append($"\"orgAdmin\":\"{user.OrgAdmin}\",");
+                if (user.ClinicLevelAccess != null)
+                    serializedUser.Append($"\"clinicLevelAccess\":\"{JsonConvert.SerializeObject(user.ClinicLevelAccess, Formatting.Indented)}\",");
 
                 if (serializedUser.Length > 1)
                     serializedUser.Length--;
@@ -580,6 +619,31 @@ namespace ApothedocImportLib.Logic
                 serializedUser.Append('}');
 
                 return serializedUser.ToString();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        private static string SerializedProvider(Provider provider)
+        {
+            try
+            {
+                var serializedProvider = new StringBuilder("{");
+                if (!string.IsNullOrEmpty(provider.Id.ToString()))
+                    serializedProvider.Append($"\"id\":\"{provider.Id.ToString()}\",");
+                if (!string.IsNullOrEmpty(provider.FirstName))
+                    serializedProvider.Append($"\"firstName\":\"{provider.FirstName}\",");
+                if (!string.IsNullOrEmpty(provider.LastName))
+                    serializedProvider.Append($"\"lastName\":\"{provider.LastName}\",");
+
+                if (serializedProvider.Length > 1)
+                    serializedProvider.Length--;
+
+                serializedProvider.Append('}');
+
+                return serializedProvider.ToString();
             }
             catch (Exception)
             {

@@ -14,7 +14,7 @@ namespace ApothedocImportLib.DataItem
         public int? DurationSeconds { get; set; }
         public string? PerformedOn { get; set; }
         public string? SubmittedAt { get; set; }
-        public User? PerformedBy { get; set; }
+        public Provider? PerformedBy { get; set; }
         public User? SubmittedBy { get; set; }
         public string? CareNote { get; set; }
         public int? ComplexCare { get; set; }

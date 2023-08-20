@@ -1,4 +1,5 @@
 ﻿using ApothedocImportLib.DataItem;
+using ApothedocImportLib.Logic;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,9 +10,14 @@ using System.Threading.Tasks;
 
 namespace ApothedocImportLib.Utils
 {
-    public static class UserMappingUtil
+    public class UserMappingUtil : BaseLogic
     {
-        public static List<UserIdMapping> LoadJsonFile()
+        public UserMappingUtil()
+        {
+
+        }
+
+        public List<UserIdMapping> LoadJsonFile()
         {
             string resourceName = "ApothedocImportLib.conf.user-mapping.json";
 
@@ -35,39 +41,77 @@ namespace ApothedocImportLib.Utils
             return userMappings.Mappings;
         }
 
-        public static List<CareSession> MapCareSessionUserInfo(List<CareSession> careSessions, List<User> targetUserList, List<UserIdMapping> mappings)
+        public List<CareSession> MapCareSessionProvidersAndSubmitters(List<CareSession> careSessions, List<Provider> targetProviders, List<User> targetSubmitters, List<UserIdMapping> mappings)
         {
-            careSessions.ForEach(c =>
+            try
             {
-                var sourceProviderId = c.PerformedBy.Id;
-                var targetProviderId = mappings.Find(u => u.SourceId == sourceProviderId).TargetId;
-                var targetProvider = targetUserList.Find(u => u.Id == targetProviderId);
+                careSessions.ForEach(c =>
+                {
+                    var sourceProviderId = c.PerformedBy?.Id;
+                    var targetProviderId = mappings.Find(u => u.SourceId == sourceProviderId)?.TargetId;
+                    var targetProvider = targetProviders.Find(u => u.Id == targetProviderId);
 
-                c.PerformedBy = targetProvider;
+                    if (targetProvider == null)
+                    {
+                        LogWarning($">>> Mapping issue for care session of source ID: {c.Id}");
+                        LogWarning($">>> Unable to map provider {c.PerformedBy?.FirstName} {c.PerformedBy?.LastName} with provider ID of {c.PerformedBy?.Id} to new clinic.");
+                        LogWarning($">>> Setting provider for care session to null");
+                        LogWarning($">>> Please ensure mapping for provider exists and user is a provider in target clinic");
+                    }
 
-                var sourceSubmitterId = c.SubmittedBy.Id;
-                var targetSubmitterId = mappings.Find(u => u.SourceId == sourceSubmitterId).TargetId;
-                var targetSubmitter = targetUserList.Find(u => u.Id == targetSubmitterId);
+                    c.PerformedBy = targetProvider;
 
-                c.SubmittedBy = targetSubmitter;
+                    var sourceSubmitterId = c.SubmittedBy?.Id;
+                    var targetSubmitterId = mappings.Find(u => u.SourceId == sourceSubmitterId)?.TargetId;
+                    var targetSubmitter = targetSubmitters.Find(u => u.Id == targetSubmitterId);
 
-            });
+                    if (targetSubmitter == null)
+                    {
+                        LogWarning($">>> Mapping issue for care session of source ID: {c.Id}");
+                        LogWarning($">>> Unable to map submitter {c.SubmittedBy?.FirstName} {c.SubmittedBy?.LastName} with user ID of {c.SubmittedBy?.Id} to new clinic.");
+                        LogWarning($">>> Setting submitter for care session to null");
+                        LogWarning($">>> Please ensure mapping for submitter exists");
+                    }
+
+                    c.SubmittedBy = targetSubmitter;
+                });
+
+            }
+            catch(Exception ex) {
+                LogError($">>> Error while mapping care session providers and submitters: {ex.Message}");
+            }
 
             return careSessions;
         }
 
-        public static Enrollment MapEnrollmentUserInfo(Enrollment enrollment, List<User> targetUserList, List<UserIdMapping> mappings)
+        public Enrollment MapEnrollmentUserInfo(Enrollment enrollment, string clinicId, List<User> targetUserList, List<UserIdMapping> mappings)
         {
 
-            var sourcePrimaryClinicianId = enrollment.PrimaryClinician.Id;
-            var targetPrimaryClinicianId = mappings.Find(u => u.SourceId == sourcePrimaryClinicianId).TargetId;
-            var targetPrimaryClinician = targetUserList.Find(u => u.Id == targetPrimaryClinicianId);
+            var sourcePrimaryClinicianId = enrollment.PrimaryClinician?.Id;
+            var targetPrimaryClinicianId = mappings.Find(u => u.SourceId == sourcePrimaryClinicianId)?.TargetId;
+            var targetPrimaryClinician = targetUserList.Find(u => u.Id == targetPrimaryClinicianId && (u.ClinicLevelAccess.ContainsKey(int.Parse(clinicId)) || u.OrgAdmin == true));
+
+            if (targetPrimaryClinician == null)
+            {
+                LogWarning($">>> Mapping issue for enrollment");
+                LogWarning($">>> Unable to map primary clinician {enrollment.PrimaryClinician?.FirstName} {enrollment.PrimaryClinician?.LastName} with clinician ID of {enrollment.PrimaryClinician?.Id} to new clinic.");
+                LogWarning($">>> Setting primary clinician to null");
+                LogWarning($">>> Please ensure mapping for user exists and user is either a clinician or org admin  in target clinic");
+            }
 
             enrollment.PrimaryClinician = targetPrimaryClinician;
 
-            var sourceSpecialistId = enrollment.Specialist.Id;
-            var targetSpecialistId = mappings.Find(u => u.SourceId == sourceSpecialistId).TargetId;
+            var sourceSpecialistId = enrollment.Specialist?.Id;
+            var targetSpecialistId = mappings.Find(u => u.SourceId == sourceSpecialistId)?.TargetId;
             var targetSpecialist = targetUserList.Find(u => u.Id == targetSpecialistId);
+
+            if (targetSpecialist == null)
+            {
+                LogWarning($">>> Mapping issue for enrollment");
+                LogWarning($">>> Unable to map specialist {enrollment.Specialist?.FirstName} {enrollment.Specialist?.LastName} with specialist ID of {enrollment.Specialist?.Id} to new clinic.");
+                LogWarning($">>> Setting specialist to null");
+                LogWarning($">>> Please ensure mapping for user exists");
+            }
 
             enrollment.Specialist = targetSpecialist;
 

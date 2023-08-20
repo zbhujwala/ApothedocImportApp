@@ -14,8 +14,10 @@ namespace ApothedocImportAppTestCase
         string sourceClinicid;
         string sourceAuthToken;
         string targetOrgId;
+        string targetClinicId;
         string targetAuthToken;
         ImportApiLogic logic;
+        UserMappingUtil userMappingUtil;
 
         [TestInitialize] 
         public void Init() {
@@ -23,12 +25,14 @@ namespace ApothedocImportAppTestCase
             sourceOrgId = "1";
             sourceClinicid = "1";
             // Replace this for each session
-            sourceAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkyNDY4MzgxLCJleHAiOjE2OTI1MTE1ODF9.jV1RM8VrqiCtFQVvO4lInZeCcyXMhQ8Xw5PWGAIIbWI";
+            sourceAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkyNTUzODk5LCJleHAiOjE2OTI1OTcwOTl9.luBFA7hNtLvVAYoiUzS0iVqpdY8Ptv_StpneyjqJMxM";
 
             targetOrgId = "2";
-            targetAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkyNDc2OTUzLCJleHAiOjE2OTI1MjAxNTN9.UUwFc3IJueir4vlnltetpPMlHYa7oYwSrxjv9PqmuKU";
+            targetClinicId = "13";
+            targetAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkyNTUzOTMzLCJleHAiOjE2OTI1OTcxMzN9.V8N-cFzOKWu7GHoNTVN6BPrLcNpGp5aORMLkdLSo1A0";
 
             logic = new(resourceApi);
+            userMappingUtil = new();
         }
 
         [TestMethod]
@@ -39,7 +43,7 @@ namespace ApothedocImportAppTestCase
             Assert.IsTrue(patientList.Count > 0);
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(patientList)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(patientList, Formatting.Indented)}");
         }
 
         [TestMethod]
@@ -49,7 +53,7 @@ namespace ApothedocImportAppTestCase
 
             Assert.IsTrue(provider != null);
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(provider)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(provider, Formatting.Indented)}");
         }
 
         [TestMethod]
@@ -62,7 +66,7 @@ namespace ApothedocImportAppTestCase
 
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions, Formatting.Indented)}");
         }
 
         [TestMethod]
@@ -73,7 +77,7 @@ namespace ApothedocImportAppTestCase
             Assert.IsNotNull(enrollmentStatus);
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentStatus)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentStatus, Formatting.Indented)}");
         }
 
         // Get CCM
@@ -84,7 +88,7 @@ namespace ApothedocImportAppTestCase
 
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails, Formatting.Indented)}");
         }
 
         // Get BHI
@@ -96,7 +100,7 @@ namespace ApothedocImportAppTestCase
 
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails, Formatting.Indented)}");
         }
 
         // Get RPM
@@ -108,25 +112,25 @@ namespace ApothedocImportAppTestCase
 
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(enrollmentDetails, Formatting.Indented)}");
         }
 
         [TestMethod]
         public async Task TestReadUserMappingsFile()
         {
-            var mappings = UserMappingUtil.LoadJsonFile();
+            var mappings = userMappingUtil.LoadJsonFile();
 
             Assert.IsNotNull(mappings);
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(mappings)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(mappings, Formatting.Indented)}");
 
         }
 
         [TestMethod]
-        public async Task TestMapCareSessionUserInfo()
+        public async Task TestMapCareSessionProvidersAndSubmitters()
         {
-            var mappings = UserMappingUtil.LoadJsonFile();
+            var mappings = userMappingUtil.LoadJsonFile();
 
             var sourceCareSession = new CareSession()
             {
@@ -136,7 +140,7 @@ namespace ApothedocImportAppTestCase
                 DurationSeconds = 60,
                 PerformedOn = "2023-06-11T00:00:00.000Z",
                 SubmittedAt = "2023-07-02T07:30:42.000Z",
-                PerformedBy = new User {
+                PerformedBy = new Provider {
                     Id = 1,
                     FirstName = "Anish",
                     LastName = "Bhatt"
@@ -155,21 +159,22 @@ namespace ApothedocImportAppTestCase
 
             List<CareSession> sourceCareSessionList = new() { sourceCareSession };
 
+            var targetProvidersList = await logic.GetProviderList(targetOrgId, targetClinicId, targetAuthToken);
             var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
 
-            var transformedList = UserMappingUtil.MapCareSessionUserInfo(sourceCareSessionList, targetUserList, mappings);
+            var transformedList = userMappingUtil.MapCareSessionProvidersAndSubmitters(sourceCareSessionList, targetProvidersList, targetUserList, mappings);
 
             Assert.IsNotNull(transformedList);
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(transformedList)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(transformedList, Formatting.Indented)}");
 
         }
 
         [TestMethod]
         public async Task TestMapEnrollmentUserInfo()
         {
-            var mappings = UserMappingUtil.LoadJsonFile();
+            var mappings = userMappingUtil.LoadJsonFile();
 
             var sourceEnrollment = new Enrollment()
             {
@@ -180,9 +185,9 @@ namespace ApothedocImportAppTestCase
                 VerbalAgreement = true,
                 PrimaryClinician = new User()
                 {
-                    Id = 3,
-                    FirstName = "Jessica",
-                    LastName = "Gustin"
+                    Id = 32,
+                    FirstName = "Zaid",
+                    LastName = "Bhujwala"
                 },
                 EnrolledSameDayOfficeVisit = 0,
                 Specialist = new User()
@@ -195,12 +200,12 @@ namespace ApothedocImportAppTestCase
 
             var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
 
-            var transformedEnrollment = UserMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetUserList, mappings);
+            var transformedEnrollment = userMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetClinicId, targetUserList, mappings);
 
             Assert.IsNotNull(transformedEnrollment);
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment, Formatting.Indented)}");
         }
     }
 }
