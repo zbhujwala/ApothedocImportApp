@@ -53,6 +53,7 @@ namespace ApothedocImportLib.Logic
                 foreach (var patient in sourcePatientList)
                 {
                     var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    Thread.Sleep(1000); // Testing to see if rapid succession API calls causes socketing connection issues
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
@@ -428,7 +429,7 @@ namespace ApothedocImportLib.Logic
                 {
                     LogError($">>> Failed to post PatientId {patient.Id} to OrgId: {destOrgId} and ClinicId: {destClinicId}");
                     LogError(resp.StatusCode.ToString());
-                    LogError(resp.Content.ToString());
+                    LogError(resp.Content.ReadAsStringAsync().ToString());
                     return null;
                 }
             }
@@ -472,7 +473,7 @@ namespace ApothedocImportLib.Logic
                 {
                     LogError($">>> Failed to post care session for PatientId: {patientId}, CareSessionId: {careSession.Id}, OrgId: {orgId}, and ClinicId: {clinicId}.");
                     LogError(resp.StatusCode.ToString());
-                    LogError(resp.Content.ToString());
+                    LogError(resp.Content.ReadAsStringAsync().ToString());
                 }
             }
             catch (Exception)
@@ -503,13 +504,13 @@ namespace ApothedocImportLib.Logic
                 }
                 else if (resp.StatusCode == HttpStatusCode.BadRequest)
                 {
-                    LogError(resp.Content.ToString());
+                    LogError(resp.Content.ReadAsStringAsync().ToString());
                 }
                 else
                 {
                     Console.WriteLine($">>> Failed to post enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
                     LogError(resp.StatusCode.ToString());
-                    LogError(resp.Content.ToString());
+                    LogError(resp.Content.ReadAsStringAsync().ToString());
                 }
             }
             catch (Exception)
