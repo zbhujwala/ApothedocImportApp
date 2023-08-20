@@ -12,12 +12,14 @@ class Program
     {
         try
         {
+            var currentTime = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console(theme: AnsiConsoleTheme.Code)
                 .MinimumLevel.Debug()
                 .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
-                .WriteTo.File("debug.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug)
-                .WriteTo.File("error.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning)
+                .WriteTo.File($"debug-{currentTime}.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug)
+                .WriteTo.File($"error-{currentTime}.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning)
                 .CreateLogger();
 
             Console.WriteLine("Enter Resource API (ex: \"https://dev.apothedoc.com/api/\")");

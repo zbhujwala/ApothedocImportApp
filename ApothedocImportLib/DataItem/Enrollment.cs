@@ -13,7 +13,7 @@ namespace ApothedocImportLib.DataItem
         public string? InformationSheet { get; set; }   // Date string
         public string? PatientAgreement { get; set; }   // Date string
         public bool? VerbalAgreement { get; set; }
-        public User? PrimaryClinician { get; set; }
+        public Provider? PrimaryClinician { get; set; }
         public User? Specialist { get; set; }
         public string? EquipmentSetupAndEducation { get; set; }     // RPM Specfic
         public int? EnrolledSameDayOfficeVisit { get; set; }      // CCM specific, bool integer
@@ -21,10 +21,10 @@ namespace ApothedocImportLib.DataItem
 
     public class EnrollmentStatus
     {
-        public bool? Ccm { get; set; }
-        public bool? Bhi { get; set; }
-        public bool? Rpm { get; set; }
-        public bool? Pcm { get; set; }
+        public bool Ccm { get; set; } = false;
+        public bool Bhi { get; set; } = false;
+        public bool Rpm { get; set; } = false;
+        public bool Pcm { get; set; } = false;
     }
     public class EnrollmentWrapper
     {

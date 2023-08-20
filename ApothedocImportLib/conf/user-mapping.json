@@ -1,5 +1,5 @@
 {
-  "mappings": [
+  "userMappings": [
     {
       "sourceId": 1,
       "targetId": 30
@@ -119,6 +119,128 @@
     {
       "sourceId": 33,
       "targetId": 30
+    }
+  ],
+  "providerMappings": [
+    {
+      "sourceId": 1,
+      "targetId": 28
+    },
+    {
+      "sourceId": 2,
+      "targetId": 29
+    },
+    {
+      "sourceId": 3,
+      "targetId": 28
+    },
+    {
+      "sourceId": 4,
+      "targetId": 28
+    },
+    {
+      "sourceId": 5,
+      "targetId": 28
+    },
+    {
+      "sourceId": 6,
+      "targetId": 28
+    },
+    {
+      "sourceId": 7,
+      "targetId": 28
+    },
+    {
+      "sourceId": 8,
+      "targetId": 28
+    },
+    {
+      "sourceId": 9,
+      "targetId": 28
+    },
+    {
+      "sourceId": 10,
+      "targetId": 28
+    },
+    {
+      "sourceId": 11,
+      "targetId": 28
+    },
+    {
+      "sourceId": 12,
+      "targetId": 28
+    },
+    {
+      "sourceId": 13,
+      "targetId": 28
+    },
+    {
+      "sourceId": 14,
+      "targetId": 28
+    },
+    {
+      "sourceId": 15,
+      "targetId": 28
+    },
+    {
+      "sourceId": 16,
+      "targetId": 28
+    },
+    {
+      "sourceId": 17,
+      "targetId": 28
+    },
+    {
+      "sourceId": 18,
+      "targetId": 28
+    },
+    {
+      "sourceId": 19,
+      "targetId": 28
+    },
+    {
+      "sourceId": 20,
+      "targetId": 28
+    },
+    {
+      "sourceId": 21,
+      "targetId": 28
+    },
+    {
+      "sourceId": 22,
+      "targetId": 28
+    },
+    {
+      "sourceId": 23,
+      "targetId": 28
+    },
+    {
+      "sourceId": 24,
+      "targetId": 29
+    },
+    {
+      "sourceId": 25,
+      "targetId": 28
+    },
+    {
+      "sourceId": 26,
+      "targetId": 28
+    },
+    {
+      "sourceId": 27,
+      "targetId": 29
+    },
+    {
+      "sourceId": 28,
+      "targetId": 28
+    },
+    {
+      "sourceId": 32,
+      "targetId": 32
+    },
+    {
+      "sourceId": 33,
+      "targetId": 28
     }
   ]
 }

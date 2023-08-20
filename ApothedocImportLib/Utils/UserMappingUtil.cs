@@ -18,7 +18,7 @@ namespace ApothedocImportLib.Utils
 
         }
 
-        public List<UserIdMapping> LoadJsonFile()
+        public UserIdMappingWrapper LoadMappingsJsonFile()
         {
             string resourceName = "ApothedocImportLib.conf.user-mapping.json";
 
@@ -39,17 +39,17 @@ namespace ApothedocImportLib.Utils
 
             UserIdMappingWrapper userMappings = System.Text.Json.JsonSerializer.Deserialize<UserIdMappingWrapper>(json, options);
 
-            return userMappings.Mappings;
+            return userMappings;
         }
 
-        public List<CareSession> MapCareSessionProvidersAndSubmitters(List<CareSession> careSessions, List<Provider> targetProviders, List<User> targetSubmitters, List<UserIdMapping> mappings)
+        public List<CareSession> MapCareSessionProvidersAndSubmitters(List<CareSession> careSessions, List<Provider> targetProviders, List<User> targetSubmitters, UserIdMappingWrapper mappings)
         {
             try
             {
                 careSessions.ForEach(c =>
                 {
                     var sourceProviderId = c.PerformedBy?.Id;
-                    var targetProviderId = mappings.Find(u => u.SourceId == sourceProviderId)?.TargetId;
+                    var targetProviderId = mappings.ProviderMappings?.Find(u => u.SourceId == sourceProviderId)?.TargetId;
                     var targetProvider = targetProviders.Find(u => u.Id == targetProviderId);
 
                     if (targetProvider == null)
@@ -63,7 +63,7 @@ namespace ApothedocImportLib.Utils
                     c.PerformedBy = targetProvider;
 
                     var sourceSubmitterId = c.SubmittedBy?.Id;
-                    var targetSubmitterId = mappings.Find(u => u.SourceId == sourceSubmitterId)?.TargetId;
+                    var targetSubmitterId = mappings.UserMappings?.Find(u => u.SourceId == sourceSubmitterId)?.TargetId;
                     var targetSubmitter = targetSubmitters.Find(u => u.Id == targetSubmitterId);
 
                     if (targetSubmitter == null)
@@ -85,12 +85,12 @@ namespace ApothedocImportLib.Utils
             return careSessions;
         }
 
-        public Enrollment MapEnrollmentUserInfo(Enrollment enrollment, string clinicId, List<User> targetUserList, List<UserIdMapping> mappings)
+        public Enrollment MapEnrollmentUserInfo(Enrollment enrollment, string clinicId, List<User> targetUserList, List<Provider> targetProviders, UserIdMappingWrapper mappings)
         {
 
             var sourcePrimaryClinicianId = enrollment.PrimaryClinician?.Id;
-            var targetPrimaryClinicianId = mappings.Find(u => u.SourceId == sourcePrimaryClinicianId)?.TargetId;
-            var targetPrimaryClinician = targetUserList.Find(u => u.Id == targetPrimaryClinicianId && (u.ClinicLevelAccess.ContainsKey(int.Parse(clinicId)) || u.OrgAdmin == true));
+            var targetPrimaryClinicianId = mappings.ProviderMappings.Find(u => u.SourceId == sourcePrimaryClinicianId)?.TargetId;
+            var targetPrimaryClinician = targetProviders.Find(u => u.Id == targetPrimaryClinicianId);
 
             if (targetPrimaryClinician == null)
             {
@@ -103,7 +103,7 @@ namespace ApothedocImportLib.Utils
             enrollment.PrimaryClinician = targetPrimaryClinician;
 
             var sourceSpecialistId = enrollment.Specialist?.Id;
-            var targetSpecialistId = mappings.Find(u => u.SourceId == sourceSpecialistId)?.TargetId;
+            var targetSpecialistId = mappings.UserMappings.Find(u => u.SourceId == sourceSpecialistId)?.TargetId;
             var targetSpecialist = targetUserList.Find(u => u.Id == targetSpecialistId);
 
             if (targetSpecialist == null)

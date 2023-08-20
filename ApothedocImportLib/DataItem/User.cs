@@ -26,7 +26,8 @@ namespace ApothedocImportLib.DataItem
 
     public class UserIdMappingWrapper
     {
-        public List<UserIdMapping>? Mappings { get; set; }
+        public List<UserIdMapping>? UserMappings { get; set; }
+        public List<UserIdMapping>? ProviderMappings { get; set; }
     }
 
 }

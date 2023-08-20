@@ -45,7 +45,7 @@ namespace ApothedocImportLib.Logic
                 var targetProvidersList = await GetProviderList(destOrgId, destClinicId, destAuthToken);
                 var targetUserList = await GetUserList(destOrgId, destAuthToken);
 
-                var mappings = userMappingUtil.LoadJsonFile();
+                var mappings = userMappingUtil.LoadMappingsJsonFile();
 
                 Log.Debug($">>> Successfully retrieved patient list");
                 Log.Debug($">>> Getting care sessions for patients...");
@@ -54,7 +54,7 @@ namespace ApothedocImportLib.Logic
                 foreach (var patient in sourcePatientList)
                 {
                     var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                    Thread.Sleep(500); // Testing to see if rapid succession API calls causes socketing connection issues
+                    Thread.Sleep(1000); // Testing to see if rapid succession API calls causes socketing connection issues
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
@@ -102,25 +102,25 @@ namespace ApothedocImportLib.Logic
                     if (enrollmentStatus.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        rpmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(rpmEnrollmentDetails, destClinicId, targetUserList, mappings);
+                        rpmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(rpmEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
                         await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        ccmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(ccmEnrollmentDetails, destClinicId, targetUserList, mappings);
+                        ccmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(ccmEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
                         await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        bhiEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(bhiEnrollmentDetails, destClinicId, targetUserList, mappings);
+                        bhiEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(bhiEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
                         await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
                     if (enrollmentStatus.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        pcmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(pcmEnrollmentDetails, destClinicId, targetUserList, mappings);
+                        pcmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(pcmEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
                         await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
@@ -669,7 +669,7 @@ namespace ApothedocImportLib.Logic
                 if (enrollment.VerbalAgreement != null)
                     serializedEnrollment.Append($"\"verbalAgreement\":\"{enrollment.VerbalAgreement}\",");
                 if (enrollment.PrimaryClinician != null)
-                    serializedEnrollment.Append($"\"primaryClinician\":\"{SerializeUser(enrollment.PrimaryClinician)}\",");
+                    serializedEnrollment.Append($"\"primaryClinician\":\"{SerializedProvider(enrollment.PrimaryClinician)}\",");
                 if (enrollment.Specialist != null)
                     serializedEnrollment.Append($"\"specialist\":\"{SerializeUser(enrollment.Specialist)}\",");
                 if (!string.IsNullOrEmpty(enrollment.EquipmentSetupAndEducation))

@@ -2,6 +2,8 @@ using ApothedocImportLib.DataItem;
 using ApothedocImportLib.Logic;
 using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
+using Serilog.Sinks.SystemConsole.Themes;
+using Serilog;
 
 namespace ApothedocImportAppTestCase
 {
@@ -28,11 +30,17 @@ namespace ApothedocImportAppTestCase
             sourceAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkyNTUzODk5LCJleHAiOjE2OTI1OTcwOTl9.luBFA7hNtLvVAYoiUzS0iVqpdY8Ptv_StpneyjqJMxM";
 
             targetOrgId = "2";
-            targetClinicId = "13";
+            targetClinicId = "14";
             targetAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkyNTUzOTMzLCJleHAiOjE2OTI1OTcxMzN9.V8N-cFzOKWu7GHoNTVN6BPrLcNpGp5aORMLkdLSo1A0";
 
             logic = new(resourceApi);
             userMappingUtil = new();
+
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console(theme: AnsiConsoleTheme.Code)
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+                .CreateLogger();
         }
 
         [TestMethod]
@@ -118,7 +126,19 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestReadUserMappingsFile()
         {
-            var mappings = userMappingUtil.LoadJsonFile();
+            var mappings = userMappingUtil.LoadMappingsJsonFile();
+
+            Assert.IsNotNull(mappings);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(mappings, Formatting.Indented)}");
+
+        }
+
+        [TestMethod]
+        public async Task TestReadProviderMappingsFile()
+        {
+            var mappings = userMappingUtil.LoadMappingsJsonFile();
 
             Assert.IsNotNull(mappings);
 
@@ -130,7 +150,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestMapCareSessionProvidersAndSubmitters()
         {
-            var mappings = userMappingUtil.LoadJsonFile();
+            var mappings = userMappingUtil.LoadMappingsJsonFile();
 
             var sourceCareSession = new CareSession()
             {
@@ -141,12 +161,12 @@ namespace ApothedocImportAppTestCase
                 PerformedOn = "2023-06-11T00:00:00.000Z",
                 SubmittedAt = "2023-07-02T07:30:42.000Z",
                 PerformedBy = new Provider {
-                    Id = 1,
-                    FirstName = "Anish",
-                    LastName = "Bhatt"
+                    Id = 4,
+                    FirstName = "Naveed",
+                    LastName = "Tharwani"
                 },
                 SubmittedBy = new User {
-                    Id = 32,
+                    Id = 3,
                     FirstName = "Zaid",
                     LastName = "Bhujwala"
                 },
@@ -174,7 +194,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestMapEnrollmentUserInfo()
         {
-            var mappings = userMappingUtil.LoadJsonFile();
+            var mappings = userMappingUtil.LoadMappingsJsonFile();
 
             var sourceEnrollment = new Enrollment()
             {
@@ -183,7 +203,7 @@ namespace ApothedocImportAppTestCase
                 InformationSheet = "2023-02-06T00:00:00.000Z",
                 PatientAgreement = "2023-02-06T00:00:00.000Z",
                 VerbalAgreement = true,
-                PrimaryClinician = new User()
+                PrimaryClinician = new Provider()
                 {
                     Id = 32,
                     FirstName = "Zaid",
@@ -199,10 +219,12 @@ namespace ApothedocImportAppTestCase
             };
 
             var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
+            var targetProviderList = await logic.GetProviderList(targetOrgId, targetClinicId, targetAuthToken);
 
-            var transformedEnrollment = userMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetClinicId, targetUserList, mappings);
+            var transformedEnrollment = userMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetClinicId, targetUserList, targetProviderList, mappings);
 
-            Assert.IsNotNull(transformedEnrollment);
+            Assert.IsNotNull(transformedEnrollment.PrimaryClinician);
+            Assert.IsNotNull(transformedEnrollment.Specialist);
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment, Formatting.Indented)}");
