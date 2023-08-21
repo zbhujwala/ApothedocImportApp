@@ -21,25 +21,27 @@ class Program
                 .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
                 .WriteTo.File($"debug-{currentTime}.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug)
                 .WriteTo.File($"error-{currentTime}.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning)
+                .Filter
+                    .ByExcluding(logEvent => logEvent.Exception is ThreadInterruptedException)
                 .CreateLogger();
 
             ConfigUtil configUtil = new();
             var config = configUtil.LoadConfig();
 
-            Log.Debug($">>> Running import with the following config values: \nResource API: {config.ResourceApi}\nSource Auth Token: {config.SourceAuthToken}\n" +
+            Log.Debug($">>> Loaded import information with the following config values: \nResource API: {config.ResourceApi}\nSource Auth Token: {config.SourceAuthToken}\n" +
                 $"Source OrgId: {config.SourceOrgId}\nSource Clinic Id: {config.SourceClinicId}\nDestination Auth Token: {config.TargetAuthToken}" +
-                $"\nTarget Org Id: {config.TargetOrgId}\nTarget Clinic Id: {config.TargetClinicId}");
-            Log.Debug("Press <Enter> to import process...");
+                $"\nTarget Org Id: {config.TargetOrgId}\nTarget Clinic Id: {config.TargetClinicId}\nSkip Care Session Import: {config.SkipCareSessionImport}");
+            Log.Debug("Press <Enter> to start import process...");
             while(Console.ReadKey().Key != ConsoleKey.Enter) {}
 
             ImportApiLogic logic = new(config.ResourceApi);
 
-            _ = logic.TransferClinicDataAsync(config.SourceOrgId, config.SourceClinicId, config.SourceAuthToken, config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken);
+            await logic.TransferClinicDataAsync(config.SourceOrgId, config.SourceClinicId, config.SourceAuthToken, config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken, config.SkipCareSessionImport);
 
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.ToString());
+            Log.Error(ex.ToString());
         }
         finally
         {

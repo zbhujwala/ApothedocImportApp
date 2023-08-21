@@ -20,15 +20,16 @@ namespace ApothedocImportLib.Logic
         }
         #endregion
 
+        #region Main Procedure
         public async Task TransferClinicDataAsync(
             string sourceOrgId,
             string sourceClinicId,
             string sourceAuthToken,
             string destOrgId,
             string destClinicId,
-            string destAuthToken)
+            string destAuthToken,
+            bool skipCareSessionImport = false)
         {
-            Thread loadingIndicator = new(ConsoleSpinner.StartLoadingIndicator);
             try
             {
                 UserMappingUtil userMappingUtil = new();
@@ -38,7 +39,6 @@ namespace ApothedocImportLib.Logic
 
                 Log.Debug($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
                 Log.Debug($">>> Getting patient list for clinic...");
-                loadingIndicator.Start();
 
                 // Grab the patient list from both source and destination. If the patient is already in the destination, we will want the Patient Id so we can transfer over care sessions from source location
                 var sourcePatientList = await GetPatientListForClinic(sourceOrgId, sourceClinicId, sourceAuthToken);
@@ -50,12 +50,15 @@ namespace ApothedocImportLib.Logic
                 var mappings = configUtil.LoadConfig().Mappings;
 
                 Log.Debug($">>> Successfully retrieved patient list");
-                Log.Debug($">>> Getting care sessions for patients...");
+                Log.Debug($">>> Getting care sessions and enrollment status for patients...");
 
                 // After we have retrieved all the patients from the source location, start grabbing their care sessions and enrollments and put them in a map
                 foreach (var patient in sourcePatientList)
                 {
-                    var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientCareSessions = new List<CareSession>();
+                    if(!skipCareSessionImport)
+                        patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
@@ -133,20 +136,17 @@ namespace ApothedocImportLib.Logic
                     }
                 }
 
-
-                loadingIndicator.Interrupt();
-
                 Log.Debug($">>> Successfully posted patients and care sessions to OrgId: {destOrgId}, ClinicId: {destClinicId}");
 
                 Log.Debug($">>> Transfer clinic data process complete.");
             }
             catch (Exception ex)
             {
-                loadingIndicator.Interrupt();
                 Log.Error($">>> TransferClinicData failed.");
                 Log.Error(ex.Message);
             }
         }
+        #endregion
 
         #region API Request Functions
         public async Task<List<Patient>> GetPatientListForClinic(string orgId, string clinicId, string authToken)
@@ -154,8 +154,8 @@ namespace ApothedocImportLib.Logic
 
             try
             {
-                // Console.WriteLine($">>> Attempting to retireve patients from OrgId: {orgId} and ClinicId: {clinicId}");
-                using HttpClient client = new();
+                Log.Information($">>> Attempting to retrieve patients from OrgId: {orgId} and ClinicId: {clinicId}");
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
 
                 HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/list");
@@ -172,14 +172,13 @@ namespace ApothedocImportLib.Logic
 
                     PatientListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<PatientListWrapper>(content, options);
 
-                    // Console.WriteLine($">>> Successfully retrieved all patient data for OrgId: {orgId} and ClinicId: {clinicId}");
-
                     // Massage the data a bit...
                     wrapper.Patients.ForEach(patient =>
                     {
                         patient.DateOfBirth = DateTime.Parse(patient.DateOfBirth).ToString("MM/dd/yyyy");
                     });
 
+                    Log.Information($"Successfully retrieved list of patients");
                     return wrapper.Patients;
                 }
                 else
@@ -204,8 +203,9 @@ namespace ApothedocImportLib.Logic
                     throw new Exception($"Cannot get care sessions of null Patient Id");
                 }
 
-                // Console.WriteLine($">>> Attempting to retireve care session from OrgId: {orgId}, ClinicId: {clinicId} and PatientId: {patientId}");
-                using HttpClient client = new();
+                Log.Information($">>> Attempting to retrieve care session for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
 
                 HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/care-sessions");
@@ -222,13 +222,13 @@ namespace ApothedocImportLib.Logic
 
                     CareSessionWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<CareSessionWrapper>(content, options);
 
-                    // Console.WriteLine($">>> Successfully retrieved all care session data for OrgId: {orgId}, ClinicId: {clinicId} and PatientId: {patientId}");
-
                     wrapper.CareSessions.ForEach(session =>
                     {
                         session.PerformedOn = DateTime.Parse(session.PerformedOn).ToString("MM/dd/yyyy");
                         session.SubmittedAt = DateTime.Parse(session.SubmittedAt).ToString("MM/dd/yyyy");
                     });
+
+                    Log.Information($"Successfully retrieved patient care sessions");
 
                     return wrapper.CareSessions;
                 }
@@ -240,78 +240,59 @@ namespace ApothedocImportLib.Logic
             catch (Exception)
             {
                 Log.Error($">>> GetPatientCareSessions failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
-
-                throw;
+                return new List<CareSession>();
             }
         }
 
         public async Task<EnrollmentStatus> GetPatientEnrollmentStatus(string orgId, string clinicId, string patientId, string sourceAuthToken)
         {
-            // This API call for some reason fails to go through on server side occasionally. Adding retry logic (up to 5 times) before erroring out
-            int maxRetryCount = 5;
-            int currentRetry = 0;
 
-            while (currentRetry < maxRetryCount) 
+            try
             {
-                try
+                Log.Information($">>> Attempting to retrieve patient enrollment status from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/enrollment/status");
+
+                if (response.IsSuccessStatusCode)
                 {
-                    using HttpClient client = new();
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
-
-                    HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/enrollment/status");
-
-                    if (response.IsSuccessStatusCode)
+                    JsonSerializerOptions options = new()
                     {
-                        JsonSerializerOptions options = new()
-                        {
-                            PropertyNameCaseInsensitive = true
-                        };
+                        PropertyNameCaseInsensitive = true
+                    };
 
-                        var content = await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync();
 
-                        EnrollmentStatusWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentStatusWrapper>(content, options);
+                    EnrollmentStatusWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentStatusWrapper>(content, options);
 
-                        if (wrapper == null || wrapper.CurrentEnrollments == null)
-                            throw new Exception($">>> No enrollment status found for user");
+                    if (wrapper == null || wrapper.CurrentEnrollments == null)
+                        throw new Exception($">>> No enrollment status found for user");
 
-                        return wrapper.CurrentEnrollments;
-                    }
-                    else
-                    {
-                        throw new Exception($">>> Non-success HTTP Response code for GetPatientEnrollmentStatus");
-                    }
-                }
-                catch (HttpRequestException)
-                {
-                    Log.Warning($">>> GetPatientEnrollmentStatus API server connection failed. Retrying GET operation (current try: {currentRetry + 1})");
-                }
-                catch (Exception)
-                {
-                    Log.Error($">>> GetPatientEnrollmentStatus failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
-                    throw;
-                }
+                    Log.Information($">>> Successfully retrieved patient enrollment status");
 
-                currentRetry++;
-
-                if(currentRetry < maxRetryCount)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1));
+                    return wrapper.CurrentEnrollments;
                 }
                 else
                 {
-                    Log.Error($">>> Max API retries for GetPatientEnrollmentStatus reached for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}. Cancelling API request.");
                     throw new Exception($">>> Non-success HTTP Response code for GetPatientEnrollmentStatus");
                 }
             }
+            catch (Exception)
+            {
+                Log.Error($">>> GetPatientEnrollmentStatus failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                return new EnrollmentStatus();
+            }
 
-            return null;
         }
 
         public async Task<Enrollment> GetPatientEnrollmentDetails(string enrollmentType, string orgId, string clinicId, string patientId, string sourceAuthToken)
         {
             try
             {
-                using HttpClient client = new();
+                Log.Information($">>> Attempting to retrieve patient enrollment details from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
 
                 HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/enrollment/{enrollmentType}");
@@ -339,6 +320,8 @@ namespace ApothedocImportLib.Logic
                     if (wrapper.Enrollment.PatientAgreement != null)
                         wrapper.Enrollment.PatientAgreement = DateTime.Parse(wrapper.Enrollment.PatientAgreement).ToString("MM/dd/yyyy");
 
+                    Log.Information($">>> Successfully retrieved patient enrollment details");
+
                     return wrapper.Enrollment;
 
                 }
@@ -350,7 +333,7 @@ namespace ApothedocImportLib.Logic
             catch (Exception)
             {
                 Log.Error($">>> GetPatientEnrollmentDetails failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, enrollmentType: {enrollmentType}.");
-                throw;
+                return new Enrollment();
             }
         }
 
@@ -358,7 +341,8 @@ namespace ApothedocImportLib.Logic
         {
             try
             {
-                using HttpClient client = new();
+                Log.Information($">>> Attempting to retrieve user list from orgId: {orgId}");
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -374,6 +358,8 @@ namespace ApothedocImportLib.Logic
                     var content = await response.Content.ReadAsStringAsync();
 
                     UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
+
+                    Log.Information($">>> Successfully retrieved user list");
 
                     return wrapper.Users;
                 }
@@ -394,7 +380,9 @@ namespace ApothedocImportLib.Logic
         {
             try
             {
-                using HttpClient client = new();
+                Log.Information($">>> Attempting to retrieve provider list from orgId: {orgId}, clinicId: {clinicId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -410,6 +398,8 @@ namespace ApothedocImportLib.Logic
                     var content = await response.Content.ReadAsStringAsync();
 
                     ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
+
+                    Log.Information($">>> Successfully retrieved provider list");
 
                     return wrapper.Providers;
                 }
@@ -430,9 +420,9 @@ namespace ApothedocImportLib.Logic
         {
             try
             {
-                // Console.WriteLine($">>> Attempting to post patient to OrgId: {destOrgId}, ClinicId: {destClinicId}");
+                Log.Information($">>> Attempting to post patient for orgId: {orgId}, clinicId: {clinicId}, patientId: {patient.Id}");
 
-                using HttpClient client = new();
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
@@ -460,7 +450,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await resp.Content.ReadAsStringAsync();
 
-                    // Console.WriteLine($">>> Successfully posted PatientId {patient.Id} to OrgId: {destOrgId} and ClinicId: {destClinicId}");
+                    Log.Information($">>> Successfully posted patient to clinic");
                     PatientCreateResponse patientCreateResponse = System.Text.Json.JsonSerializer.Deserialize<PatientCreateResponse>(content, options);
 
                     return patientCreateResponse?.PatientId?.ToString();
@@ -475,14 +465,14 @@ namespace ApothedocImportLib.Logic
                 {
                     Log.Error($">>> Failed to post patient for orgId: {orgId}, clinicId: {clinicId}, patientId: {patient.Id}");
                     Log.Error(resp.StatusCode.ToString());
-                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
                     return null;
                 }
             }
             catch (Exception)
             {
-                Log.Error(">>> PostPatientToClinic failed.");
-                throw;
+                Log.Error($">>> PostPatientToClinic failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patient.Id}.");
+                return null;
             }
         }
 
@@ -494,9 +484,9 @@ namespace ApothedocImportLib.Logic
                 {
                     throw new Exception("PatientId is null, cannot upload care session");
                 }
-                // Console.WriteLine($">>> Attempting to post patient list to OrgId: {orgId}, ClinicId: {clinicId}");
+                 Console.WriteLine($">>> Attempting to post patient care session to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, careSession: {careSession}");
 
-                using HttpClient client = new();
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
@@ -510,23 +500,18 @@ namespace ApothedocImportLib.Logic
 
                 if (resp.StatusCode == HttpStatusCode.OK)
                 {
-                    // Console.WriteLine($">>> Successfully posted care session for PatientId: {patientId}, CareSessionId: {careSession.Id}, OrgId: {orgId}, and ClinicId: {clinicId}");
-                }
-                else if (resp.StatusCode == HttpStatusCode.BadRequest)
-                {
-                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
+                     Log.Information($">>> Successfully posted care session for patient");
                 }
                 else
                 {
                     Log.Error($">>> Failed to post care session for patientId: {patientId}, careSessionId: {careSession.Id}, orgId: {orgId}, and clinicId: {clinicId}.");
                     Log.Error(resp.StatusCode.ToString());
-                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
                 }
             }
             catch (Exception)
             {
-                Log.Error(">>> PostCareSessionToClinic failed.");
-                throw;
+                Log.Error($">>> PostCareSessionToClinic failed for patientId: {patientId}, careSessionId: {careSession.Id}, orgId: {orgId}, and clinicId: {clinicId}.");
             }
         }
 
@@ -534,7 +519,9 @@ namespace ApothedocImportLib.Logic
         {
             try
             {
-                using HttpClient client = new();
+                Log.Information($">>> Attempting to post enrollment information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, enrollmentType: {enrollmentType}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
@@ -548,23 +535,18 @@ namespace ApothedocImportLib.Logic
 
                 if (resp.StatusCode == HttpStatusCode.OK)
                 {
-                    Console.WriteLine($">>> Successfully posted enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
-                }
-                else if (resp.StatusCode == HttpStatusCode.BadRequest)
-                {
-                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Information($">>> Successfully posted enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
                 }
                 else
                 {
                     Log.Error($">>> Failed to post enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
                     Log.Error(resp.StatusCode.ToString());
-                    Log.Error(resp.Content.ReadAsStringAsync().ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
                 }
             }
             catch (Exception)
             {
-                Log.Error(">>> PostEnrollmentsToClinic failed.");
-                throw;
+                Log.Error($">>> PostEnrollmentsToClinic failed for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}.");
             }
         }
         #endregion
@@ -653,14 +635,6 @@ namespace ApothedocImportLib.Logic
                     serializedUser.Append($"\"firstName\":\"{user.FirstName}\",");
                 if (!string.IsNullOrEmpty(user.LastName))
                     serializedUser.Append($"\"lastName\":\"{user.LastName}\",");
-                if(!string.IsNullOrEmpty(user.Email))
-                    serializedUser.Append($"\"email\":\"{user.Email}\",");
-                if (user.Disabled != null)
-                    serializedUser.Append($"\"disabled\":\"{user.Disabled}\","); 
-                if (user.OrgAdmin != null)
-                    serializedUser.Append($"\"orgAdmin\":\"{user.OrgAdmin}\",");
-                if (user.ClinicLevelAccess != null)
-                    serializedUser.Append($"\"clinicLevelAccess\":\"{JsonConvert.SerializeObject(user.ClinicLevelAccess, Formatting.Indented)}\",");
 
                 if (serializedUser.Length > 1)
                     serializedUser.Length--;
@@ -716,9 +690,9 @@ namespace ApothedocImportLib.Logic
                 if (enrollment.VerbalAgreement != null)
                     serializedEnrollment.Append($"\"verbalAgreement\":\"{enrollment.VerbalAgreement}\",");
                 if (enrollment.PrimaryClinician != null)
-                    serializedEnrollment.Append($"\"primaryClinician\":\"{SerializedProvider(enrollment.PrimaryClinician)}\",");
+                    serializedEnrollment.Append($"\"primaryClinician\":{SerializedProvider(enrollment.PrimaryClinician)},");
                 if (enrollment.Specialist != null)
-                    serializedEnrollment.Append($"\"specialist\":\"{SerializeUser(enrollment.Specialist)}\",");
+                    serializedEnrollment.Append($"\"specialist\":{SerializeUser(enrollment.Specialist)},");
                 if (!string.IsNullOrEmpty(enrollment.EquipmentSetupAndEducation))
                     serializedEnrollment.Append($"\"equipmentSetupAndEducation\":\"{enrollment.EquipmentSetupAndEducation}\",");
                 if (enrollment.EnrolledSameDayOfficeVisit != null)

@@ -5,7 +5,8 @@
   "sourceClinicId": "1",
   "targetAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkyNTUzOTMzLCJleHAiOjE2OTI1OTcxMzN9.V8N-cFzOKWu7GHoNTVN6BPrLcNpGp5aORMLkdLSo1A0",
   "targetOrgId": "2",
-  "targetClinicId":  "16",
+  "targetClinicId": "18",
+  "skipCareSessionImport": true,
   "mappings": {
     "userMappings": [
       {
@@ -240,6 +241,14 @@
       },
       {
         "sourceId": 28,
+        "targetId": 28
+      },
+      {
+        "sourceId": 30,
+        "targetId": 32
+      },
+      {
+        "sourceId": 31,
         "targetId": 28
       },
       {
