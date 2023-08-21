@@ -14,26 +14,6 @@ namespace ApothedocImportLib.Utils
     {
         public Config LoadConfig()
         {
-            //string resourceName = "ApothedocImportLib.Conf.config.json";
-
-            //string json = null;
-            //Assembly assembly = Assembly.GetExecutingAssembly();
-            //using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            //{
-            //    using (StreamReader reader = new StreamReader(stream))
-            //    {
-            //        json = reader.ReadToEnd();
-            //    }
-            //}
-
-            //JsonSerializerOptions options = new()
-            //{
-            //    PropertyNameCaseInsensitive = true
-            //};
-
-            //Config config = System.Text.Json.JsonSerializer.Deserialize<Config>(json, options);
-
-            //return config;
 
             var dir = Directory.GetCurrentDirectory();
             var path = Path.Combine(dir, "config.json");
