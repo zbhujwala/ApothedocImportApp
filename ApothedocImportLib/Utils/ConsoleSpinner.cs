@@ -27,6 +27,10 @@ public class ConsoleSpinner
         {
             ClearConsoleLine();
         }
+        catch(ArgumentOutOfRangeException)
+        {
+            ClearConsoleLine() ;
+        }
     }
 
     static void ClearConsoleLine()

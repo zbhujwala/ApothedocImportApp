@@ -18,30 +18,6 @@ namespace ApothedocImportLib.Utils
 
         }
 
-        public UserIdMappingWrapper LoadMappingsJsonFile()
-        {
-            string resourceName = "ApothedocImportLib.conf.user-mapping.json";
-
-            string json = null;
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            {
-                using (StreamReader reader = new StreamReader(stream))
-                {
-                    json = reader.ReadToEnd();
-                }
-            }
-
-            JsonSerializerOptions options = new()
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            UserIdMappingWrapper userMappings = System.Text.Json.JsonSerializer.Deserialize<UserIdMappingWrapper>(json, options);
-
-            return userMappings;
-        }
-
         public List<CareSession> MapCareSessionProvidersAndSubmitters(List<CareSession> careSessions, List<Provider> targetProviders, List<User> targetSubmitters, UserIdMappingWrapper mappings)
         {
             try
@@ -103,6 +79,10 @@ namespace ApothedocImportLib.Utils
             enrollment.PrimaryClinician = targetPrimaryClinician;
 
             var sourceSpecialistId = enrollment.Specialist?.Id;
+            
+            if (sourceSpecialistId == null)
+                return enrollment;  // This can be null, just break early if it is
+            
             var targetSpecialistId = mappings.UserMappings.Find(u => u.SourceId == sourceSpecialistId)?.TargetId;
             var targetSpecialist = targetUserList.Find(u => u.Id == targetSpecialistId);
 

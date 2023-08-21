@@ -20,6 +20,7 @@ namespace ApothedocImportAppTestCase
         string targetAuthToken;
         ImportApiLogic logic;
         UserMappingUtil userMappingUtil;
+        ConfigUtil configUtil;
 
         [TestInitialize] 
         public void Init() {
@@ -35,6 +36,7 @@ namespace ApothedocImportAppTestCase
 
             logic = new(resourceApi);
             userMappingUtil = new();
+            configUtil = new();
 
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console(theme: AnsiConsoleTheme.Code)
@@ -126,7 +128,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestReadUserMappingsFile()
         {
-            var mappings = userMappingUtil.LoadMappingsJsonFile();
+            var mappings = configUtil.LoadConfig().Mappings;
 
             Assert.IsNotNull(mappings);
 
@@ -136,21 +138,21 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestReadProviderMappingsFile()
+        public async Task TestGetConfig()
         {
-            var mappings = userMappingUtil.LoadMappingsJsonFile();
+            var config = configUtil.LoadConfig();
 
-            Assert.IsNotNull(mappings);
+            Assert.IsNotNull(config);
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(mappings, Formatting.Indented)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(config, Formatting.Indented)}");
 
         }
 
         [TestMethod]
         public async Task TestMapCareSessionProvidersAndSubmitters()
         {
-            var mappings = userMappingUtil.LoadMappingsJsonFile();
+            var mappings = configUtil.LoadConfig().Mappings;
 
             var sourceCareSession = new CareSession()
             {
@@ -194,7 +196,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestMapEnrollmentUserInfo()
         {
-            var mappings = userMappingUtil.LoadMappingsJsonFile();
+            var mappings = configUtil.LoadConfig().Mappings;
 
             var sourceEnrollment = new Enrollment()
             {

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
+using ApothedocImportLib.Utils;
 
 class Program
 {
@@ -22,30 +23,18 @@ class Program
                 .WriteTo.File($"error-{currentTime}.log", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning)
                 .CreateLogger();
 
-            Console.WriteLine("Enter Resource API (ex: \"https://dev.apothedoc.com/api/\")");
-            var resourceApi = Console.ReadLine();
+            ConfigUtil configUtil = new();
+            var config = configUtil.LoadConfig();
 
-            Console.WriteLine("Enter source Auth Token:");
-            var sourceAuthToken = Console.ReadLine();
+            Log.Debug($">>> Running import with the following config values: \nResource API: {config.ResourceApi}\nSource Auth Token: {config.SourceAuthToken}\n" +
+                $"Source OrgId: {config.SourceOrgId}\nSource Clinic Id: {config.SourceClinicId}\nDestination Auth Token: {config.TargetAuthToken}" +
+                $"\nTarget Org Id: {config.TargetOrgId}\nTarget Clinic Id: {config.TargetClinicId}");
+            Log.Debug("Press <Enter> to import process...");
+            while(Console.ReadKey().Key != ConsoleKey.Enter) {}
 
-            Console.WriteLine("Enter source Organization ID:");
-            var sourceOrgId = Console.ReadLine();
+            ImportApiLogic logic = new(config.ResourceApi);
 
-            Console.WriteLine("Enter source Clinic ID");
-            var sourceClinicId = Console.ReadLine();
-
-            Console.WriteLine("Enter destination Auth Token:");
-            var destAuthToken = Console.ReadLine();
-
-            Console.WriteLine("Enter destination Organization ID:");
-            var destOrgId = Console.ReadLine();
-
-            Console.WriteLine("Enter destination Clinic ID:");
-            var destClinicId = Console.ReadLine();
-
-            ImportApiLogic logic = new(resourceApi);
-
-            _ = logic.TransferClinicDataAsync(sourceOrgId, sourceClinicId, sourceAuthToken, destOrgId, destClinicId, destAuthToken);
+            _ = logic.TransferClinicDataAsync(config.SourceOrgId, config.SourceClinicId, config.SourceAuthToken, config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken);
 
         }
         catch (Exception ex)

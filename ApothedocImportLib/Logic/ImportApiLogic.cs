@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Serilog;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -31,6 +32,7 @@ namespace ApothedocImportLib.Logic
             try
             {
                 UserMappingUtil userMappingUtil = new();
+                ConfigUtil configUtil = new();
 
                 Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
 
@@ -45,7 +47,7 @@ namespace ApothedocImportLib.Logic
                 var targetProvidersList = await GetProviderList(destOrgId, destClinicId, destAuthToken);
                 var targetUserList = await GetUserList(destOrgId, destAuthToken);
 
-                var mappings = userMappingUtil.LoadMappingsJsonFile();
+                var mappings = configUtil.LoadConfig().Mappings;
 
                 Log.Debug($">>> Successfully retrieved patient list");
                 Log.Debug($">>> Getting care sessions for patients...");
@@ -54,7 +56,6 @@ namespace ApothedocImportLib.Logic
                 foreach (var patient in sourcePatientList)
                 {
                     var patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                    //Thread.Sleep(1000); // Testing to see if rapid succession API calls causes socketing connection issues
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
                     patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
@@ -189,7 +190,7 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                Console.WriteLine(">>> GetPatientListForClinic failed.");
+                Log.Error($">>> GetPatientListForClinic failed for orgId: {orgId}, clinicId: {clinicId}.");
                 throw;
             }
         }
@@ -238,7 +239,8 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                Log.Error(">>> GetPatientCareSessions failed.");
+                Log.Error($">>> GetPatientCareSessions failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+
                 throw;
             }
         }
@@ -285,7 +287,7 @@ namespace ApothedocImportLib.Logic
                 }
                 catch (Exception)
                 {
-                    Log.Error(">>> GetPatientEnrollmentStatus failed.");
+                    Log.Error($">>> GetPatientEnrollmentStatus failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
                     throw;
                 }
 
@@ -297,7 +299,7 @@ namespace ApothedocImportLib.Logic
                 }
                 else
                 {
-                    Log.Error($">>> Max API retries for GetPatientEnrollmentStatus reached. Cancelling API request.");
+                    Log.Error($">>> Max API retries for GetPatientEnrollmentStatus reached for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}. Cancelling API request.");
                     throw new Exception($">>> Non-success HTTP Response code for GetPatientEnrollmentStatus");
                 }
             }
@@ -347,74 +349,93 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                Log.Error(">>> GetPatientEnrollmentDetails faild.");
+                Log.Error($">>> GetPatientEnrollmentDetails failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, enrollmentType: {enrollmentType}.");
                 throw;
             }
         }
 
         public async Task<List<User>> GetUserList(string orgId, string authToken)
         {
-            using HttpClient client = new();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/user/list");
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                JsonSerializerOptions options = new()
+                using HttpClient client = new();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/user/list");
+
+                if (response.IsSuccessStatusCode)
                 {
-                    PropertyNameCaseInsensitive = true
-                };
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
 
-                var content = await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync();
 
-                UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
+                    UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
 
-                return wrapper.Users;
+                    return wrapper.Users;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetUserList");
+                }
+
             }
-            else
+            catch (Exception)
             {
-                throw new Exception($">>> Non-success HTTP Response code for TryGetProviderById");
+                Log.Error($">>> GetUserList failed for orgId: {orgId}.");
+                throw;
             }
         }
 
         public async Task<List<Provider>> GetProviderList(string orgId, string clinicId, string authToken)
         {
-            using HttpClient client = new();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/provider/list?type=providers");
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                JsonSerializerOptions options = new()
+                using HttpClient client = new();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/provider/list?type=providers");
+
+                if (response.IsSuccessStatusCode)
                 {
-                    PropertyNameCaseInsensitive = true
-                };
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
 
-                var content = await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync();
 
-                ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
+                    ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
 
-                return wrapper.Providers;
+                    return wrapper.Providers;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetProviderList");
+                }
             }
-            else
+            catch (Exception)
             {
-                throw new Exception($">>> Non-success HTTP Response code for TryGetProviderById");
+                Log.Error($">>> GetProviderList failed for orgId: {orgId}, clinicId: {clinicId}.");
+                throw;
             }
+
         }
 
-        public async Task<string?> PostPatientToClinic(Patient patient, string destOrgId, string destClinicId, string destAuthToken)
+        public async Task<string?> PostPatientToClinic(Patient patient, string orgId, string clinicId, string authToken)
         {
             try
             {
                 // Console.WriteLine($">>> Attempting to post patient to OrgId: {destOrgId}, ClinicId: {destClinicId}");
 
                 using HttpClient client = new();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", destAuthToken);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
 
                 // Make sure Patient Id is null here when we post it up
 
@@ -428,7 +449,7 @@ namespace ApothedocImportLib.Logic
                 var requestBody = new StringContent(json, Encoding.UTF8, "application/json");
                 requestBody.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{destOrgId}/clinic-id/{destClinicId}/patient/new", requestBody);
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/new", requestBody);
 
                 if (resp.StatusCode == HttpStatusCode.OK)
                 {
@@ -452,7 +473,7 @@ namespace ApothedocImportLib.Logic
                 }
                 else
                 {
-                    Log.Error($">>> Failed to post PatientId {patient.Id} to OrgId: {destOrgId} and ClinicId: {destClinicId}");
+                    Log.Error($">>> Failed to post patient for orgId: {orgId}, clinicId: {clinicId}, patientId: {patient.Id}");
                     Log.Error(resp.StatusCode.ToString());
                     Log.Error(resp.Content.ReadAsStringAsync().ToString());
                     return null;
@@ -478,6 +499,7 @@ namespace ApothedocImportLib.Logic
                 using HttpClient client = new();
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
 
                 var json = SerializeCareSessions(careSession);
 
@@ -496,7 +518,7 @@ namespace ApothedocImportLib.Logic
                 }
                 else
                 {
-                    Log.Error($">>> Failed to post care session for PatientId: {patientId}, CareSessionId: {careSession.Id}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+                    Log.Error($">>> Failed to post care session for patientId: {patientId}, careSessionId: {careSession.Id}, orgId: {orgId}, and clinicId: {clinicId}.");
                     Log.Error(resp.StatusCode.ToString());
                     Log.Error(resp.Content.ReadAsStringAsync().ToString());
                 }
@@ -515,6 +537,7 @@ namespace ApothedocImportLib.Logic
                 using HttpClient client = new();
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
 
                 var json = SerializeEnrollment(enrollment);
 
@@ -533,7 +556,7 @@ namespace ApothedocImportLib.Logic
                 }
                 else
                 {
-                    Console.WriteLine($">>> Failed to post enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error($">>> Failed to post enrollment information for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}");
                     Log.Error(resp.StatusCode.ToString());
                     Log.Error(resp.Content.ReadAsStringAsync().ToString());
                 }
