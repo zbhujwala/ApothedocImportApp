@@ -17,4 +17,10 @@ namespace ApothedocImportLib.DataItem
     {
         public List<Provider>? Providers { get; set; }
     }
+
+    public class ProviderIdMapping
+    {
+        public int SourceId { get; set; }
+        public int TargetId { get; set; }
+    }
 }

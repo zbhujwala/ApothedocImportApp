@@ -8,14 +8,14 @@ namespace ApothedocImportLib.DataItem
 {
     public class Config
     {
-        public string ResourceApi { get; set; }
-        public string SourceAuthToken { get; set; }
-        public string SourceOrgId { get; set; }
-        public string SourceClinicId { get; set; }
-        public string TargetAuthToken { get; set; }
-        public string TargetOrgId { get; set;}
-        public string TargetClinicId { get;set; }
+        public required string ResourceApi { get; set; }
+        public required string SourceAuthToken { get; set; }
+        public required string SourceOrgId { get; set; }
+        public required string SourceClinicId { get; set; }
+        public required string TargetAuthToken { get; set; }
+        public required string TargetOrgId { get; set;}
+        public required string TargetClinicId { get;set; }
         public bool SkipCareSessionImport { get; set; }
-        public UserIdMappingWrapper Mappings { get; set; }
+        public required List<ProviderIdMapping> ProviderMappings { get; set; }
     }
 }

@@ -4,6 +4,7 @@ using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 using Serilog;
+using Newtonsoft.Json.Serialization;
 
 namespace ApothedocImportAppTestCase
 {
@@ -11,32 +12,25 @@ namespace ApothedocImportAppTestCase
     public class ImportLogicTest
     {
         string patientId = "1740";
-        string resourceApi;
-        string sourceOrgId;
-        string sourceClinicid;
-        string sourceAuthToken;
-        string targetOrgId;
-        string targetClinicId;
-        string targetAuthToken;
         ImportApiLogic logic;
-        UserMappingUtil userMappingUtil;
-        ConfigUtil configUtil;
+        ProviderMappingUtil providerMappingUtil;
+        Config config;
 
         [TestInitialize] 
         public void Init() {
-            resourceApi = "https://dev.apothedoc.com/api/";
-            sourceOrgId = "1";
-            sourceClinicid = "1";
-            // Replace this for each session
-            sourceAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkyNTUzODk5LCJleHAiOjE2OTI1OTcwOTl9.luBFA7hNtLvVAYoiUzS0iVqpdY8Ptv_StpneyjqJMxM";
 
-            targetOrgId = "2";
-            targetClinicId = "14";
-            targetAuthToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkyNTUzOTMzLCJleHAiOjE2OTI1OTcxMzN9.V8N-cFzOKWu7GHoNTVN6BPrLcNpGp5aORMLkdLSo1A0";
+            ConfigUtil configUtil = new();
+            config = configUtil.LoadConfig();
 
-            logic = new(resourceApi);
-            userMappingUtil = new();
-            configUtil = new();
+            logic = new(config.ResourceApi);
+            providerMappingUtil = new();
+
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver(),
+                NullValueHandling = NullValueHandling.Ignore
+            };
 
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console(theme: AnsiConsoleTheme.Code)
@@ -48,7 +42,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestGetPatientList()
         {
-            var patientList = await logic.GetPatientListForClinic(sourceOrgId, sourceClinicid, sourceAuthToken);
+            var patientList = await logic.GetPatientListForClinic(config.SourceOrgId, config.SourceClinicId, config.SourceAuthToken);
 
             Assert.IsTrue(patientList.Count > 0);
 
@@ -57,32 +51,23 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestGetUsers()
-        {
-            var provider = await logic.GetUserList(sourceOrgId, sourceAuthToken);
-
-            Assert.IsTrue(provider != null);
-            Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(provider, Formatting.Indented)}");
-        }
-
-        [TestMethod]
         public async Task TestGetPatientCareSessions()
         {
             patientId = "1";
-            var careSessions = await logic.GetPatientCareSessions(sourceOrgId, sourceClinicid, patientId, sourceAuthToken);
+            var careSessions = await logic.GetPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
             Assert.IsTrue(careSessions.Count > 0);
 
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions, Formatting.Indented)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
         }
 
         [TestMethod]
         public async Task TestGetPatientEnrollmentStatus()
         {
-            var enrollmentStatus = await logic.GetPatientEnrollmentStatus(sourceOrgId, sourceClinicid, patientId, sourceAuthToken);
+            var enrollmentStatus = await logic.GetPatientEnrollmentStatus(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
             Assert.IsNotNull(enrollmentStatus);
 
@@ -94,7 +79,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestGetPatientEnrollmentDetailsCCM()
         {
-            var enrollmentDetails = await logic.GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicid, patientId, sourceAuthToken);
+            var enrollmentDetails = await logic.GetPatientEnrollmentDetails("ccm", config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
@@ -106,7 +91,7 @@ namespace ApothedocImportAppTestCase
         public async Task TestGetPatientEnrollmentDetailsBHI()
         {
             // Get CCM
-            var enrollmentDetails = await logic.GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicid, patientId, sourceAuthToken);
+            var enrollmentDetails = await logic.GetPatientEnrollmentDetails("bhi", config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
@@ -118,7 +103,7 @@ namespace ApothedocImportAppTestCase
         public async Task TestGetPatientEnrollmentDetailsRPM()
         {
             // Get CCM
-            var enrollmentDetails = await logic.GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicid, patientId, sourceAuthToken);
+            var enrollmentDetails = await logic.GetPatientEnrollmentDetails("rpm", config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
             Assert.IsNotNull(enrollmentDetails);
             Console.WriteLine($"Response:");
@@ -126,22 +111,8 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestReadUserMappingsFile()
+        public void TestGetConfig()
         {
-            var mappings = configUtil.LoadConfig().Mappings;
-
-            Assert.IsNotNull(mappings);
-
-            Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(mappings, Formatting.Indented)}");
-
-        }
-
-        [TestMethod]
-        public async Task TestGetConfig()
-        {
-            var config = configUtil.LoadConfig();
-
             Assert.IsNotNull(config);
 
             Console.WriteLine($"Response:");
@@ -152,7 +123,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestMapCareSessionProvidersAndSubmitters()
         {
-            var mappings = configUtil.LoadConfig().Mappings;
+            var mappings = config.ProviderMappings;
 
             var sourceCareSession = new CareSession()
             {
@@ -167,26 +138,23 @@ namespace ApothedocImportAppTestCase
                     FirstName = "Naveed",
                     LastName = "Tharwani"
                 },
-                SubmittedBy = new User {
+                SubmittedBy = new Provider {
                     Id = 3,
                     FirstName = "Zaid",
                     LastName = "Bhujwala"
                 },
                 CareNote = "adding 1 more min of CCM time.",
                 ComplexCare = 0,
-                InteractedWithPatient = 0,
-                MatchedSubmittedPerformedBy = false,
-                MatchedSubmittedPerformedAt = false
+                InteractedWithPatient = 0
             };
 
             List<CareSession> sourceCareSessionList = new() { sourceCareSession };
 
-            var targetProvidersList = await logic.GetProviderList(targetOrgId, targetClinicId, targetAuthToken);
-            var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
+            var targetProvidersList = await logic.GetProviderList(config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken);
 
-            var transformedList = userMappingUtil.MapCareSessionProvidersAndSubmitters(sourceCareSessionList, targetProvidersList, targetUserList, mappings);
+            var transformedList = providerMappingUtil.MapCareSessionProvidersAndSubmitters(sourceCareSessionList, targetProvidersList, mappings);
 
-            Assert.IsNotNull(transformedList);
+            Assert.IsNotNull(transformedList[0].PerformedBy);
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedList, Formatting.Indented)}");
@@ -194,9 +162,9 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestMapEnrollmentUserInfo()
+        public async Task TestMapEnrollmentProviderInfo()
         {
-            var mappings = configUtil.LoadConfig().Mappings;
+            var mappings = config.ProviderMappings;
 
             var sourceEnrollment = new Enrollment()
             {
@@ -207,12 +175,12 @@ namespace ApothedocImportAppTestCase
                 VerbalAgreement = true,
                 PrimaryClinician = new Provider()
                 {
-                    Id = 32,
+                    Id = 30,
                     FirstName = "Zaid",
                     LastName = "Bhujwala"
                 },
                 EnrolledSameDayOfficeVisit = 0,
-                Specialist = new User()
+                Specialist = new Provider()
                 {
                     Id = 23,
                     FirstName = "anish devtest",
@@ -220,13 +188,11 @@ namespace ApothedocImportAppTestCase
                 }
             };
 
-            var targetUserList = await logic.GetUserList(targetOrgId, targetAuthToken);
-            var targetProviderList = await logic.GetProviderList(targetOrgId, targetClinicId, targetAuthToken);
+            var targetProviderList = await logic.GetProviderList(config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken);
 
-            var transformedEnrollment = userMappingUtil.MapEnrollmentUserInfo(sourceEnrollment, targetClinicId, targetUserList, targetProviderList, mappings);
+            var transformedEnrollment = providerMappingUtil.MapEnrollmentProviderInfo(sourceEnrollment, targetProviderList, mappings);
 
             Assert.IsNotNull(transformedEnrollment.PrimaryClinician);
-            Assert.IsNotNull(transformedEnrollment.Specialist);
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment, Formatting.Indented)}");
