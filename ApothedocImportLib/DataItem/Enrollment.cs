@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ApothedocImportLib.Utils;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +18,7 @@ namespace ApothedocImportLib.DataItem
         public required Provider PrimaryClinician { get; set; }
         public Provider? Specialist { get; set; }
         public string? EquipmentSetupAndEducation { get; set; }     // RPM Specfic
+        [JsonConverter(typeof(IntToBooleanConverter))]
         public int EnrolledSameDayOfficeVisit { get; set; }      // CCM specific, bool integer
     }
 

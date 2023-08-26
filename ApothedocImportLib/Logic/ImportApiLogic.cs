@@ -1,6 +1,7 @@
 ﻿using ApothedocImportLib.DataItem;
 using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using Serilog;
 using System.Net;
 using System.Net.Http.Headers;
@@ -17,6 +18,13 @@ namespace ApothedocImportLib.Logic
         public ImportApiLogic(string resourceApi)
         {
             _resourceApi = resourceApi;
+
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver(),
+                NullValueHandling = NullValueHandling.Ignore
+            };
         }
         #endregion
 
@@ -197,7 +205,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    PatientListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<PatientListWrapper>(content, options);
+                    PatientListWrapper wrapper = JsonConvert.DeserializeObject<PatientListWrapper>(content);
 
                     // Massage the data a bit...
                     wrapper.Patients.ForEach(patient =>
@@ -205,7 +213,7 @@ namespace ApothedocImportLib.Logic
                         patient.DateOfBirth = DateTime.Parse(patient.DateOfBirth).ToString("MM/dd/yyyy");
                     });
 
-                    Log.Debug($"Successfully retrieved list of patients");
+                    Log.Debug($">>> Successfully retrieved list of patients");
                     return wrapper.Patients;
                 }
                 else
@@ -247,7 +255,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    CareSessionWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<CareSessionWrapper>(content, options);
+                    CareSessionWrapper wrapper = JsonConvert.DeserializeObject<CareSessionWrapper>(content);
 
                     wrapper.CareSessions.ForEach(session =>
                     {
@@ -255,7 +263,7 @@ namespace ApothedocImportLib.Logic
                         session.SubmittedAt = DateTime.Parse(session.SubmittedAt).ToString("MM/dd/yyyy");
                     });
 
-                    Log.Debug($"Successfully retrieved patient care sessions");
+                    Log.Debug($">>> Successfully retrieved patient care sessions");
 
                     return wrapper.CareSessions;
                 }
@@ -292,7 +300,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    EnrollmentStatusWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentStatusWrapper>(content, options);
+                    EnrollmentStatusWrapper wrapper = JsonConvert.DeserializeObject<EnrollmentStatusWrapper>(content);
 
                     if (wrapper == null || wrapper.CurrentEnrollments == null)
                         throw new Exception($">>> No enrollment status found for patient");
@@ -333,7 +341,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    EnrollmentWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentWrapper>(content, options);
+                    EnrollmentWrapper wrapper = JsonConvert.DeserializeObject<EnrollmentWrapper>(content);
 
                     if (wrapper == null || wrapper.Enrollment == null)
                         throw new Exception($">>> No enrollment details found for patient with enrollment type: {enrollmentType}");
@@ -385,7 +393,7 @@ namespace ApothedocImportLib.Logic
 
                     var content = await response.Content.ReadAsStringAsync();
 
-                    ProviderListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<ProviderListWrapper>(content, options);
+                    ProviderListWrapper wrapper = JsonConvert.DeserializeObject<ProviderListWrapper>(content);
 
                     Log.Debug($">>> Successfully retrieved provider list");
 
@@ -415,13 +423,11 @@ namespace ApothedocImportLib.Logic
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
 
-                // Make sure Patient Id is null here when we post it up
+                // Make sure Patient Id is null here when we post it up, make a deep copy
+                Patient patientPostObject = JsonConvert.DeserializeObject<Patient>(JsonConvert.SerializeObject(patient));
+                patientPostObject.Id = null;
 
-                JsonSerializerSettings settings = new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore
-                };
-                var json = JsonConvert.SerializeObject(patient, settings);
+                var json = JsonConvert.SerializeObject(patientPostObject);
 
                 var requestBody = new StringContent(json, Encoding.UTF8, "application/json");
                 requestBody.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -438,7 +444,7 @@ namespace ApothedocImportLib.Logic
                     var content = await resp.Content.ReadAsStringAsync();
 
                     Log.Debug($">>> Successfully posted patient to clinic");
-                    PatientCreateResponse patientCreateResponse = System.Text.Json.JsonSerializer.Deserialize<PatientCreateResponse>(content, options);
+                    PatientCreateResponse patientCreateResponse = JsonConvert.DeserializeObject<PatientCreateResponse>(content);
 
                     return patientCreateResponse?.PatientId?.ToString();
                 }
@@ -471,18 +477,20 @@ namespace ApothedocImportLib.Logic
                 {
                     throw new Exception("PatientId is null, cannot upload care session");
                 }
-                 Console.WriteLine($">>> Attempting to post patient care session to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, careSession: {careSession}");
+                Log.Debug($">>> Attempting to post patient care session to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, careSession: {careSession}");
 
                 using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
 
-                JsonSerializerSettings settings = new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore
-                };
-                var json = JsonConvert.SerializeObject(careSession, settings);
+                // Make sure Patient Id is null here when we post it up, make a deep copy
+                CareSession careSessionPostObject = JsonConvert.DeserializeObject<CareSession>(JsonConvert.SerializeObject(careSession));
+                careSessionPostObject.Id = null;
+                careSessionPostObject.SubmittedAt = null;
+                careSessionPostObject.SubmittedBy = null;
+
+                var json = JsonConvert.SerializeObject(careSessionPostObject);
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -510,18 +518,14 @@ namespace ApothedocImportLib.Logic
         {
             try
             {
-                Log.Debug($">>> Attempting to post enrollment information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, enrollmentType: {enrollmentType}");
+                Log.Debug($">>> Attempting to post enrollment information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, enrollment: {JsonConvert.SerializeObject(enrollment)}");
 
                 using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
 
-                JsonSerializerSettings settings = new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore
-                };
-                var json = JsonConvert.SerializeObject(enrollment, settings);
+                var json = JsonConvert.SerializeObject(enrollment);
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
