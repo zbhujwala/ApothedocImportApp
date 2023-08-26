@@ -4,6 +4,7 @@ using ApothedocImportLib.Utils;
 using Newtonsoft.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 using Serilog;
+using Newtonsoft.Json.Serialization;
 
 namespace ApothedocImportAppTestCase
 {
@@ -23,6 +24,13 @@ namespace ApothedocImportAppTestCase
 
             logic = new(config.ResourceApi);
             providerMappingUtil = new();
+
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented,
+                ContractResolver = new CamelCasePropertyNamesContractResolver(),
+                NullValueHandling = NullValueHandling.Ignore
+            };
 
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console(theme: AnsiConsoleTheme.Code)
@@ -52,7 +60,8 @@ namespace ApothedocImportAppTestCase
 
 
             Console.WriteLine($"Response:");
-            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions, Formatting.Indented)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
         }
 
         [TestMethod]
@@ -102,7 +111,7 @@ namespace ApothedocImportAppTestCase
         }
 
         [TestMethod]
-        public async Task TestGetConfig()
+        public void TestGetConfig()
         {
             Assert.IsNotNull(config);
 
@@ -136,9 +145,7 @@ namespace ApothedocImportAppTestCase
                 },
                 CareNote = "adding 1 more min of CCM time.",
                 ComplexCare = 0,
-                InteractedWithPatient = 0,
-                MatchedSubmittedPerformedBy = false,
-                MatchedSubmittedPerformedAt = false
+                InteractedWithPatient = 0
             };
 
             List<CareSession> sourceCareSessionList = new() { sourceCareSession };
