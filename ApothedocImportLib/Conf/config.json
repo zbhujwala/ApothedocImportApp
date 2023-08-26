@@ -1,265 +1,44 @@
 ﻿{
   "resourceApi": "https://dev.apothedoc.com/api/",
-  "sourceAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkyNTY4MzYwLCJleHAiOjE2OTI2MTE1NjB9.wLRgNzXhaH57RG_h7En945waDcT30YFQd291-rbFu2Y",
+  "sourceAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkzMDA1MDU0LCJleHAiOjE2OTMwNDgyNTR9.Dy0lOXSS_-sBj_feFpAE0ibbz4qltO_frZSSHPfoX0s",
   "sourceOrgId": "1",
   "sourceClinicId": "1",
-  "targetAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkyNTUzOTMzLCJleHAiOjE2OTI1OTcxMzN9.V8N-cFzOKWu7GHoNTVN6BPrLcNpGp5aORMLkdLSo1A0",
+  "targetAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkzMDA1MTI5LCJleHAiOjE2OTMwNDgzMjl9.dO3cHhsEr0z03i1gQdt9LNwZC0XBd7EOZ9Zyv90etbY",
   "targetOrgId": "2",
-  "targetClinicId": "18",
-  "skipCareSessionImport": true,
-  "mappings": {
-    "userMappings": [
-      {
-        "sourceId": 1,
-        "targetId": 30
-      },
-      {
-        "sourceId": 2,
-        "targetId": 31
-      },
-      {
-        "sourceId": 3,
-        "targetId": 30
-      },
-      {
-        "sourceId": 4,
-        "targetId": 30
-      },
-      {
-        "sourceId": 5,
-        "targetId": 30
-      },
-      {
-        "sourceId": 6,
-        "targetId": 30
-      },
-      {
-        "sourceId": 7,
-        "targetId": 30
-      },
-      {
-        "sourceId": 8,
-        "targetId": 30
-      },
-      {
-        "sourceId": 9,
-        "targetId": 30
-      },
-      {
-        "sourceId": 10,
-        "targetId": 30
-      },
-      {
-        "sourceId": 11,
-        "targetId": 30
-      },
-      {
-        "sourceId": 12,
-        "targetId": 30
-      },
-      {
-        "sourceId": 13,
-        "targetId": 30
-      },
-      {
-        "sourceId": 14,
-        "targetId": 30
-      },
-      {
-        "sourceId": 15,
-        "targetId": 30
-      },
-      {
-        "sourceId": 16,
-        "targetId": 30
-      },
-      {
-        "sourceId": 17,
-        "targetId": 30
-      },
-      {
-        "sourceId": 18,
-        "targetId": 30
-      },
-      {
-        "sourceId": 19,
-        "targetId": 30
-      },
-      {
-        "sourceId": 20,
-        "targetId": 30
-      },
-      {
-        "sourceId": 21,
-        "targetId": 30
-      },
-      {
-        "sourceId": 22,
-        "targetId": 30
-      },
-      {
-        "sourceId": 23,
-        "targetId": 30
-      },
-      {
-        "sourceId": 24,
-        "targetId": 31
-      },
-      {
-        "sourceId": 25,
-        "targetId": 30
-      },
-      {
-        "sourceId": 26,
-        "targetId": 30
-      },
-      {
-        "sourceId": 27,
-        "targetId": 31
-      },
-      {
-        "sourceId": 28,
-        "targetId": 30
-      },
-      {
-        "sourceId": 32,
-        "targetId": 34
-      },
-      {
-        "sourceId": 33,
-        "targetId": 30
-      }
-    ],
-    "providerMappings": [
-      {
-        "sourceId": 1,
-        "targetId": 28
-      },
-      {
-        "sourceId": 2,
-        "targetId": 29
-      },
-      {
-        "sourceId": 3,
-        "targetId": 28
-      },
-      {
-        "sourceId": 4,
-        "targetId": 28
-      },
-      {
-        "sourceId": 5,
-        "targetId": 28
-      },
-      {
-        "sourceId": 6,
-        "targetId": 28
-      },
-      {
-        "sourceId": 7,
-        "targetId": 28
-      },
-      {
-        "sourceId": 8,
-        "targetId": 28
-      },
-      {
-        "sourceId": 9,
-        "targetId": 28
-      },
-      {
-        "sourceId": 10,
-        "targetId": 28
-      },
-      {
-        "sourceId": 11,
-        "targetId": 28
-      },
-      {
-        "sourceId": 12,
-        "targetId": 28
-      },
-      {
-        "sourceId": 13,
-        "targetId": 28
-      },
-      {
-        "sourceId": 14,
-        "targetId": 28
-      },
-      {
-        "sourceId": 15,
-        "targetId": 28
-      },
-      {
-        "sourceId": 16,
-        "targetId": 28
-      },
-      {
-        "sourceId": 17,
-        "targetId": 28
-      },
-      {
-        "sourceId": 18,
-        "targetId": 28
-      },
-      {
-        "sourceId": 19,
-        "targetId": 28
-      },
-      {
-        "sourceId": 20,
-        "targetId": 28
-      },
-      {
-        "sourceId": 21,
-        "targetId": 28
-      },
-      {
-        "sourceId": 22,
-        "targetId": 28
-      },
-      {
-        "sourceId": 23,
-        "targetId": 28
-      },
-      {
-        "sourceId": 24,
-        "targetId": 29
-      },
-      {
-        "sourceId": 25,
-        "targetId": 28
-      },
-      {
-        "sourceId": 26,
-        "targetId": 28
-      },
-      {
-        "sourceId": 27,
-        "targetId": 29
-      },
-      {
-        "sourceId": 28,
-        "targetId": 28
-      },
-      {
-        "sourceId": 30,
-        "targetId": 32
-      },
-      {
-        "sourceId": 31,
-        "targetId": 28
-      },
-      {
-        "sourceId": 32,
-        "targetId": 32
-      },
-      {
-        "sourceId": 33,
-        "targetId": 28
-      }
-    ]
-  }
-  
+  "targetClinicId": "19",
+  "skipCareSessionImport": false,
+  "providerMappings": [
+    {
+      "sourceId": 1,
+      "targetId": 29
+    },
+    {
+      "sourceId": 2,
+      "targetId": 29
+    },
+    {
+      "sourceId": 3,
+      "targetId": 29
+    },
+    {
+      "sourceId": 4,
+      "targetId": 29
+    },
+    {
+      "sourceId": 5,
+      "targetId": 29
+    },
+    {
+      "sourceId": 21,
+      "targetId": 28
+    },
+    {
+      "sourceId": 23,
+      "targetId": 29
+    },
+    {
+      "sourceId": 30,
+      "targetId": 32
+    }
+  ]
 }

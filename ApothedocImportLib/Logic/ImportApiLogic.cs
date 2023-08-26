@@ -32,22 +32,21 @@ namespace ApothedocImportLib.Logic
         {
             try
             {
-                UserMappingUtil userMappingUtil = new();
+                ProviderMappingUtil providerMappingUtil = new();
                 ConfigUtil configUtil = new();
 
                 Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
 
                 Log.Information($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
-                Log.Information($">>> Getting patient and user information from source clinic...");
+                Log.Information($">>> Getting patient and provider information from source clinic...");
 
                 // Grab the patient list from both source and destination. If the patient is already in the destination, we will want the Patient Id so we can transfer over care sessions from source location
                 var sourcePatientList = await GetPatientListForClinic(sourceOrgId, sourceClinicId, sourceAuthToken);
                 var destPatientList = await GetPatientListForClinic(destOrgId, destClinicId, destAuthToken);
 
                 var targetProvidersList = await GetProviderList(destOrgId, destClinicId, destAuthToken);
-                var targetUserList = await GetUserList(destOrgId, destAuthToken);
 
-                var mappings = configUtil.LoadConfig().Mappings;
+                var mappings = configUtil.LoadConfig().ProviderMappings;
 
                 Log.Information($">>> Getting care sessions and enrollment status for patients...");
                 // After we have retrieved all the patients from the source location, start grabbing their care sessions and enrollments and put them in a map
@@ -106,30 +105,58 @@ namespace ApothedocImportLib.Logic
                     if (enrollmentStatus.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        rpmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(rpmEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
-                        await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        if (rpmEnrollmentDetails != null) 
+                        {  
+                            rpmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(rpmEnrollmentDetails, targetProvidersList, mappings);
+                            await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        }
+                        else
+                        {
+                            Log.Error(">>> Skipping enrollment POST for RPM due to reported error");
+                        }
                     }
                     if (enrollmentStatus.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        ccmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(ccmEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
-                        await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        if(ccmEnrollmentDetails != null)
+                        {
+                            ccmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(ccmEnrollmentDetails, targetProvidersList, mappings);
+                            await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        }
+                        else
+                        {
+                            Log.Error(">>> Skipping enrollment POST for CCM due to reported error");
+                        }
                     }
                     if (enrollmentStatus.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        bhiEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(bhiEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
-                        await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        if(bhiEnrollmentDetails != null)
+                        {
+                            bhiEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(bhiEnrollmentDetails, targetProvidersList, mappings);
+                            await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        }
+                        else
+                        {
+                            Log.Error(">>> Skipping enrollment POST for BHI due to reported error");
+                        }
                     }
                     if (enrollmentStatus.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        pcmEnrollmentDetails = userMappingUtil.MapEnrollmentUserInfo(pcmEnrollmentDetails, destClinicId, targetUserList, targetProvidersList, mappings);
-                        await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        if(pcmEnrollmentDetails != null)
+                        {
+                            pcmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(pcmEnrollmentDetails, targetProvidersList, mappings);
+                            await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                        }
+                        else
+                        {
+                            Log.Error(">>> Skipping enrollment POST for PCM due to reported error");
+                        }
                     }
 
                     // Post the care sessions after we confirmed the patient ID in the destination clinic
-                    careSessions = userMappingUtil.MapCareSessionProvidersAndSubmitters(careSessions, targetProvidersList, targetUserList, mappings);
+                    careSessions = providerMappingUtil.MapCareSessionProvidersAndSubmitters(careSessions, targetProvidersList, mappings);
                     foreach (var careSession in careSessions)
                     {
                         await PostCareSessionToClinic(careSession, newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -268,7 +295,7 @@ namespace ApothedocImportLib.Logic
                     EnrollmentStatusWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentStatusWrapper>(content, options);
 
                     if (wrapper == null || wrapper.CurrentEnrollments == null)
-                        throw new Exception($">>> No enrollment status found for user");
+                        throw new Exception($">>> No enrollment status found for patient");
 
                     Log.Debug($">>> Successfully retrieved patient enrollment status");
 
@@ -287,7 +314,7 @@ namespace ApothedocImportLib.Logic
 
         }
 
-        public async Task<Enrollment> GetPatientEnrollmentDetails(string enrollmentType, string orgId, string clinicId, string patientId, string sourceAuthToken)
+        public async Task<Enrollment?> GetPatientEnrollmentDetails(string enrollmentType, string orgId, string clinicId, string patientId, string sourceAuthToken)
         {
             try
             {
@@ -309,7 +336,7 @@ namespace ApothedocImportLib.Logic
                     EnrollmentWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<EnrollmentWrapper>(content, options);
 
                     if (wrapper == null || wrapper.Enrollment == null)
-                        throw new Exception($">>> No enrollment details found for user with enrollment type: {enrollmentType}");
+                        throw new Exception($">>> No enrollment details found for patient with enrollment type: {enrollmentType}");
 
                     if (wrapper.Enrollment.EnrollmentDate != null)
                         wrapper.Enrollment.EnrollmentDate = DateTime.Parse(wrapper.Enrollment.EnrollmentDate).ToString("MM/dd/yyyy");
@@ -333,46 +360,7 @@ namespace ApothedocImportLib.Logic
             catch (Exception)
             {
                 Log.Error($">>> GetPatientEnrollmentDetails failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, enrollmentType: {enrollmentType}.");
-                return new Enrollment();
-            }
-        }
-
-        public async Task<List<User>> GetUserList(string orgId, string authToken)
-        {
-            try
-            {
-                Log.Debug($">>> Attempting to retrieve user list from orgId: {orgId}");
-                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/user/list");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    JsonSerializerOptions options = new()
-                    {
-                        PropertyNameCaseInsensitive = true
-                    };
-
-                    var content = await response.Content.ReadAsStringAsync();
-
-                    UserListWrapper wrapper = System.Text.Json.JsonSerializer.Deserialize<UserListWrapper>(content, options);
-
-                    Log.Debug($">>> Successfully retrieved user list");
-
-                    return wrapper.Users;
-                }
-                else
-                {
-                    throw new Exception($">>> Non-success HTTP Response code for GetUserList");
-                }
-
-            }
-            catch (Exception)
-            {
-                Log.Error($">>> GetUserList failed for orgId: {orgId}.");
-                throw;
+                return null;
             }
         }
 
@@ -457,7 +445,7 @@ namespace ApothedocImportLib.Logic
                 }
                 else if (resp.StatusCode == HttpStatusCode.Conflict)
                 {
-                    // User has already been migrated, grab the ID and continue with the process so we can attempt to get the care sessions...
+                    // Patient has already been migrated, grab the ID and continue with the process so we can attempt to get the care sessions...
                     Log.Warning($">>> Patient with same MRN exists in destination clinic as the one being migrated.");
                     return null;
                 }
@@ -624,31 +612,6 @@ namespace ApothedocImportLib.Logic
             }
         }
 
-        private static string SerializeUser(User user)
-        {
-            try
-            {
-                var serializedUser = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(user.Id.ToString()))
-                    serializedUser.Append($"\"id\":\"{user.Id.ToString()}\",");
-                if (!string.IsNullOrEmpty(user.FirstName))
-                    serializedUser.Append($"\"firstName\":\"{user.FirstName}\",");
-                if (!string.IsNullOrEmpty(user.LastName))
-                    serializedUser.Append($"\"lastName\":\"{user.LastName}\",");
-
-                if (serializedUser.Length > 1)
-                    serializedUser.Length--;
-
-                serializedUser.Append('}');
-
-                return serializedUser.ToString();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
         private static string SerializedProvider(Provider provider)
         {
             try
@@ -692,7 +655,7 @@ namespace ApothedocImportLib.Logic
                 if (enrollment.PrimaryClinician != null)
                     serializedEnrollment.Append($"\"primaryClinician\":{SerializedProvider(enrollment.PrimaryClinician)},");
                 if (enrollment.Specialist != null)
-                    serializedEnrollment.Append($"\"specialist\":{SerializeUser(enrollment.Specialist)},");
+                    serializedEnrollment.Append($"\"specialist\":{SerializedProvider(enrollment.Specialist)},");
                 if (!string.IsNullOrEmpty(enrollment.EquipmentSetupAndEducation))
                     serializedEnrollment.Append($"\"equipmentSetupAndEducation\":\"{enrollment.EquipmentSetupAndEducation}\",");
                 if (enrollment.EnrolledSameDayOfficeVisit != null)

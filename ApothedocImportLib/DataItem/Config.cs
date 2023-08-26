@@ -16,6 +16,6 @@ namespace ApothedocImportLib.DataItem
         public string TargetOrgId { get; set;}
         public string TargetClinicId { get;set; }
         public bool SkipCareSessionImport { get; set; }
-        public UserIdMappingWrapper Mappings { get; set; }
+        public List<ProviderIdMapping> ProviderMappings { get; set; }
     }
 }

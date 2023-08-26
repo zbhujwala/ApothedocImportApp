@@ -15,7 +15,7 @@ namespace ApothedocImportLib.DataItem
         public string? PerformedOn { get; set; }
         public string? SubmittedAt { get; set; }
         public Provider? PerformedBy { get; set; }
-        public User? SubmittedBy { get; set; }
+        public Provider? SubmittedBy { get; set; }
         public string? CareNote { get; set; }
         public int? ComplexCare { get; set; }
         public int? InteractedWithPatient { get; set; } = 0;

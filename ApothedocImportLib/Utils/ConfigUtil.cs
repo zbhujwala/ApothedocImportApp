@@ -25,7 +25,7 @@ namespace ApothedocImportLib.Utils
                 PropertyNameCaseInsensitive = true
             };
 
-            Config config= JsonConvert.DeserializeObject<Config>(json);
+            Config config = JsonConvert.DeserializeObject<Config>(json);
 
             return config;
         }
