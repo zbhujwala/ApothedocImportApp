@@ -417,12 +417,11 @@ namespace ApothedocImportLib.Logic
 
                 // Make sure Patient Id is null here when we post it up
 
-                var serializerSettings = new JsonSerializerSettings
+                JsonSerializerSettings settings = new JsonSerializerSettings
                 {
-                    ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
+                    NullValueHandling = NullValueHandling.Ignore
                 };
-
-                var json = SerializePatientContent(patient);
+                var json = JsonConvert.SerializeObject(patient, settings);
 
                 var requestBody = new StringContent(json, Encoding.UTF8, "application/json");
                 requestBody.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -479,7 +478,11 @@ namespace ApothedocImportLib.Logic
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
 
-                var json = SerializeCareSessions(careSession);
+                JsonSerializerSettings settings = new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore
+                };
+                var json = JsonConvert.SerializeObject(careSession, settings);
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -514,7 +517,11 @@ namespace ApothedocImportLib.Logic
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromMinutes(2);
 
-                var json = SerializeEnrollment(enrollment);
+                JsonSerializerSettings settings = new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore
+                };
+                var json = JsonConvert.SerializeObject(enrollment, settings);
 
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -538,143 +545,5 @@ namespace ApothedocImportLib.Logic
             }
         }
         #endregion
-
-        #region Helper functions
-        private static string SerializePatientContent(Patient patient)
-        {
-            try
-            {
-                var serializedPatient = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(patient.FirstName))
-                    serializedPatient.Append($"\"firstName\":\"{patient.FirstName}\",");
-                if (!string.IsNullOrEmpty(patient.MiddleName))
-                    serializedPatient.Append($"\"middleName\":\"{patient.MiddleName}\",");
-                if (!string.IsNullOrEmpty(patient.LastName))
-                    serializedPatient.Append($"\"lastName\":\"{patient.LastName}\",");
-                if (!string.IsNullOrEmpty(patient.Mrn))
-                    serializedPatient.Append($"\"mrn\":\"{patient.Mrn}\",");
-                if (!string.IsNullOrEmpty(patient.DateOfBirth))
-                    serializedPatient.Append($"\"dateOfBirth\":\"{patient.DateOfBirth}\",");
-                if (!string.IsNullOrEmpty(patient.PhoneNumber))
-                    serializedPatient.Append($"\"phoneNumber\":\"{patient.PhoneNumber}\",");
-                if (!string.IsNullOrEmpty(patient.Gender))
-                    serializedPatient.Append($"\"gender\":\"{patient.Gender}\",");
-                if (!string.IsNullOrEmpty(patient.PreferredName))
-                    serializedPatient.Append($"\"preferredName\":\"{patient.PreferredName}\",");
-                if (!string.IsNullOrEmpty(patient.MedicareId))
-                    serializedPatient.Append($"\"medicareId\":\"{patient.MedicareId}\",");
-
-                if (serializedPatient.Length > 1)
-                    serializedPatient.Length--;
-
-                serializedPatient.Append('}');
-
-                return serializedPatient.ToString();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private static string SerializeCareSessions(CareSession careSession)
-        {
-            try
-            {
-                var serializedCareSession = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(careSession.CareType))
-                    serializedCareSession.Append($"\"careType\":\"{careSession.CareType}\",");
-                if (careSession.UsingManualTimeEntry != null)
-                    serializedCareSession.Append($"\"usingManualTimeEntry\":{(careSession.UsingManualTimeEntry == 1).ToString().ToLower()},");
-                if (careSession.DurationSeconds != null)
-                    serializedCareSession.Append($"\"durationSeconds\":\"{careSession.DurationSeconds}\",");
-                if (!string.IsNullOrEmpty(careSession.PerformedOn))
-                    serializedCareSession.Append($"\"performedOn\":\"{careSession.PerformedOn}\",");
-                if (careSession.PerformedBy != null)
-                    serializedCareSession.Append($"\"performedBy\": {SerializedProvider(careSession.PerformedBy)},");
-                if (!string.IsNullOrEmpty(careSession.CareNote))
-                    serializedCareSession.Append($"\"careNote\":\"{careSession.CareNote}\",");
-                if (careSession.ComplexCare != null)
-                    serializedCareSession.Append($"\"complexCare\":{(careSession.ComplexCare == 1).ToString().ToLower()},");
-                if (careSession.InteractedWithPatient != null)
-                    serializedCareSession.Append($"\"interactedWithPatient\":{(careSession.InteractedWithPatient == 1).ToString().ToLower()},");
-
-                if (serializedCareSession.Length > 1)
-                    serializedCareSession.Length--;
-
-                serializedCareSession.Append('}');
-
-                return serializedCareSession.ToString();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private static string SerializedProvider(Provider provider)
-        {
-            try
-            {
-                var serializedProvider = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(provider.Id.ToString()))
-                    serializedProvider.Append($"\"id\":\"{provider.Id.ToString()}\",");
-                if (!string.IsNullOrEmpty(provider.FirstName))
-                    serializedProvider.Append($"\"firstName\":\"{provider.FirstName}\",");
-                if (!string.IsNullOrEmpty(provider.LastName))
-                    serializedProvider.Append($"\"lastName\":\"{provider.LastName}\",");
-
-                if (serializedProvider.Length > 1)
-                    serializedProvider.Length--;
-
-                serializedProvider.Append('}');
-
-                return serializedProvider.ToString();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private static string SerializeEnrollment(Enrollment enrollment)
-        {
-            try
-            {
-                var serializedEnrollment = new StringBuilder("{");
-                if (!string.IsNullOrEmpty(enrollment.EnrollmentDate))
-                    serializedEnrollment.Append($"\"enrollmentDate\":\"{enrollment.EnrollmentDate}\",");
-                if (!string.IsNullOrEmpty(enrollment.CancellationDate))
-                    serializedEnrollment.Append($"\"cancelationDate\":\"{enrollment.CancellationDate}\",");
-                if (!string.IsNullOrEmpty(enrollment.InformationSheet))
-                    serializedEnrollment.Append($"\"informationSheet\":\"{enrollment.InformationSheet}\",");
-                if (!string.IsNullOrEmpty(enrollment.PatientAgreement))
-                    serializedEnrollment.Append($"\"patientAgreement\":\"{enrollment.PatientAgreement}\",");
-                if (enrollment.VerbalAgreement != null)
-                    serializedEnrollment.Append($"\"verbalAgreement\":\"{enrollment.VerbalAgreement}\",");
-                if (enrollment.PrimaryClinician != null)
-                    serializedEnrollment.Append($"\"primaryClinician\":{SerializedProvider(enrollment.PrimaryClinician)},");
-                if (enrollment.Specialist != null)
-                    serializedEnrollment.Append($"\"specialist\":{SerializedProvider(enrollment.Specialist)},");
-                if (!string.IsNullOrEmpty(enrollment.EquipmentSetupAndEducation))
-                    serializedEnrollment.Append($"\"equipmentSetupAndEducation\":\"{enrollment.EquipmentSetupAndEducation}\",");
-                if (enrollment.EnrolledSameDayOfficeVisit != null)
-                    serializedEnrollment.Append($"\"enrolledSameDayOfficeVisit\":\"{(enrollment.EnrolledSameDayOfficeVisit == 1).ToString().ToLower()}\",");
-
-                if (serializedEnrollment.Length > 1)
-                    serializedEnrollment.Length--;
-
-                serializedEnrollment.Append('}');
-
-                return serializedEnrollment.ToString();
-
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-        #endregion
-
     }
 }
