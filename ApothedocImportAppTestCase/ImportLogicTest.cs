@@ -53,11 +53,25 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestGetPatientCareSessions()
         {
+            patientId = "3";
+            var careSessions = await logic.GetPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, 1, config.SourceAuthToken);
+
+            Assert.IsTrue(careSessions.CareSessions.Count > 0);
+
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+        }
+
+        [TestMethod]
+        public async Task TestGetAllPatientCareSessions()
+        {
             patientId = "1";
-            var careSessions = await logic.GetPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+            var careSessions = await logic.GetAllPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
+            Console.WriteLine($"Care Session Count: {careSessions.Count}");
             Assert.IsTrue(careSessions.Count > 0);
-
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");

@@ -63,7 +63,7 @@ namespace ApothedocImportLib.Logic
                     var patientCareSessions = new List<CareSession>();
                     if (!skipCareSessionImport)
                     {
-                        patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                        patientCareSessions = await GetAllPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     }
                     
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
@@ -229,7 +229,7 @@ namespace ApothedocImportLib.Logic
             }
         }
 
-        public async Task<List<CareSession>> GetPatientCareSessions(string orgId, string clinicId, string patientId, string sourceAuthToken)
+        public async Task<CareSessionWrapper> GetPatientCareSessions(string orgId, string clinicId, string patientId, int pageNumber, string authToken)
         {
             try
             {
@@ -241,9 +241,9 @@ namespace ApothedocImportLib.Logic
                 Log.Debug($">>> Attempting to retrieve care session for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
 
                 using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
 
-                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/care-sessions");
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/care-sessions?page={pageNumber}&type=total");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -265,7 +265,7 @@ namespace ApothedocImportLib.Logic
 
                     Log.Debug($">>> Successfully retrieved patient care sessions");
 
-                    return wrapper.CareSessions;
+                    return wrapper;
                 }
                 else
                 {
@@ -275,7 +275,7 @@ namespace ApothedocImportLib.Logic
             catch (Exception)
             {
                 Log.Error($">>> GetPatientCareSessions failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
-                return new List<CareSession>();
+                return new();
             }
         }
 
@@ -548,6 +548,47 @@ namespace ApothedocImportLib.Logic
                 Log.Error($">>> PostEnrollmentsToClinic failed for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}.");
             }
         }
+        #endregion
+
+        #region Helper Functions
+
+        public async Task<List<CareSession>> GetAllPatientCareSessions(string orgId, string clinicId, string patientId, string authToken)
+        {
+            List<CareSession> allPatientCareSessions = new();
+            try
+            {
+                var allCareSessionsRetreived = false;
+                int pageNumber = 1;
+
+                var careSessionWrapper = await GetPatientCareSessions(orgId, clinicId, patientId, pageNumber, authToken);
+
+                var totalCareSessionCount = careSessionWrapper.CareMetaData.Counts.Total;
+                allPatientCareSessions = allPatientCareSessions.Concat(careSessionWrapper.CareSessions).ToList();
+
+                if (totalCareSessionCount == allPatientCareSessions.Count)
+                    return allPatientCareSessions;
+
+                while (!allCareSessionsRetreived)
+                {
+                    careSessionWrapper = await GetPatientCareSessions(orgId, clinicId, patientId, ++pageNumber, authToken);
+                    allPatientCareSessions = allPatientCareSessions.Concat(careSessionWrapper.CareSessions).ToList();
+
+                    if (allPatientCareSessions.Count == totalCareSessionCount)
+                        allCareSessionsRetreived = true;
+
+                }
+
+                return allPatientCareSessions;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($">>> Unable to retrieve all patient care sessions");
+                Log.Warning(ex.Message);
+                Log.Warning($">>> Skipping Care Session import for patient id: {patientId}");
+            }
+            return new();
+        }
+
         #endregion
     }
 }

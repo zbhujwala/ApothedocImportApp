@@ -26,8 +26,34 @@ namespace ApothedocImportLib.DataItem
         public int InteractedWithPatient { get; set; } = 0;
     }
 
+    public class CareMetaData
+    {
+        public DurationSeconds? DurationSeconds { get; set; }
+        public Counts? Counts { get; set; }
+        public int PageSize { get; set; }
+    }
+
+    public class DurationSeconds
+    {
+        public int Bhi { get; set; }
+        public int Ccm { get; set; }
+        public int Pcm { get; set; }
+        public int Rpm { get; set; }
+        public int Total { get; set; }
+    }
+
+    public class Counts
+    {
+        public int Bhi { get; set; }
+        public int Ccm { get; set; }
+        public int Pcm { get; set; }
+        public int Rpm { get; set; }
+        public int Total { get; set; }
+    }
+
     public class CareSessionWrapper
     {
         public List<CareSession>? CareSessions { get; set; }
+        public CareMetaData? CareMetaData { get; set; }
     }
 }
