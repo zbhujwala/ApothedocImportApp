@@ -210,7 +210,7 @@ namespace ApothedocImportLib.Logic
                     // Massage the data a bit...
                     wrapper.Patients.ForEach(patient =>
                     {
-                        patient.DateOfBirth = DateTime.Parse(patient.DateOfBirth).ToString("MM/dd/yyyy");
+                        patient.DateOfBirth = DateTime.Parse(patient.DateOfBirth).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
                     });
 
                     Log.Debug($">>> Successfully retrieved list of patients");
@@ -259,8 +259,8 @@ namespace ApothedocImportLib.Logic
 
                     wrapper.CareSessions.ForEach(session =>
                     {
-                        session.PerformedOn = DateTime.Parse(session.PerformedOn).ToString("MM/dd/yyyy");
-                        session.SubmittedAt = DateTime.Parse(session.SubmittedAt).ToString("MM/dd/yyyy");
+                        session.PerformedOn = DateTime.Parse(session.PerformedOn).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
+                        session.SubmittedAt = DateTime.Parse(session.SubmittedAt).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
                     });
 
                     Log.Debug($">>> Successfully retrieved patient care sessions");
@@ -347,13 +347,13 @@ namespace ApothedocImportLib.Logic
                         throw new Exception($">>> No enrollment details found for patient with enrollment type: {enrollmentType}");
 
                     if (wrapper.Enrollment.EnrollmentDate != null)
-                        wrapper.Enrollment.EnrollmentDate = DateTime.Parse(wrapper.Enrollment.EnrollmentDate).ToString("MM/dd/yyyy");
+                        wrapper.Enrollment.EnrollmentDate = DateTime.Parse(wrapper.Enrollment.EnrollmentDate).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
                     if (wrapper.Enrollment.CancellationDate != null)
-                        wrapper.Enrollment.CancellationDate = DateTime.Parse(wrapper.Enrollment.CancellationDate).ToString("MM/dd/yyyy");
+                        wrapper.Enrollment.CancellationDate = DateTime.Parse(wrapper.Enrollment.CancellationDate).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
                     if (wrapper.Enrollment.InformationSheet != null)
-                        wrapper.Enrollment.InformationSheet = DateTime.Parse(wrapper.Enrollment.InformationSheet).ToString("MM/dd/yyyy");
+                        wrapper.Enrollment.InformationSheet = DateTime.Parse(wrapper.Enrollment.InformationSheet).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
                     if (wrapper.Enrollment.PatientAgreement != null)
-                        wrapper.Enrollment.PatientAgreement = DateTime.Parse(wrapper.Enrollment.PatientAgreement).ToString("MM/dd/yyyy");
+                        wrapper.Enrollment.PatientAgreement = DateTime.Parse(wrapper.Enrollment.PatientAgreement).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
 
                     Log.Debug($">>> Successfully retrieved patient enrollment details");
 
