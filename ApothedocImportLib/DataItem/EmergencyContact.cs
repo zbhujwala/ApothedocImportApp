@@ -15,7 +15,7 @@ namespace ApothedocImportLib.DataItem
         public string PhoneNumber { get; set; }
     }
 
-    public class EmergencyWrapper
+    public class EmergencyContactWrapper
     { 
         public List<EmergencyContact> EmergencyContacts { get; set; }
     }
