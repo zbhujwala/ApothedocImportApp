@@ -43,7 +43,7 @@ namespace ApothedocImportLib.Logic
                 ProviderMappingUtil providerMappingUtil = new();
                 ConfigUtil configUtil = new();
 
-                Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
+                Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication>> patientInfoDictionary = new();
 
                 Log.Information($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
                 Log.Information($">>> Getting patient and provider information from source clinic...");
@@ -67,14 +67,15 @@ namespace ApothedocImportLib.Logic
                     }
                     
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientAllergies = await GetAllergyMedication(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
-                    patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
+                    patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment, patientAllergies));
                 }
 
                 // Just counting for logging...
                 int careSessionCount = 0;
                 int enrollmentCount = 0;
-                foreach (Tuple<List<CareSession>, EnrollmentStatus> patientInfoRecord in patientInfoDictionary.Values)
+                foreach (Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication> patientInfoRecord in patientInfoDictionary.Values)
                 {
                     careSessionCount += patientInfoRecord.Item1.Count;
 
@@ -95,6 +96,7 @@ namespace ApothedocImportLib.Logic
                     var patient = patientInfoRecord.Key;
                     var careSessions = patientInfoRecord.Value.Item1;
                     var enrollmentStatus = patientInfoRecord.Value.Item2;
+                    var allergies = patientInfoRecord.Value.Item3;
 
                     // Start with posting up the patient
                     var newPatientId = await PostPatientToClinic(patient, destOrgId, destClinicId, destAuthToken);
@@ -161,6 +163,12 @@ namespace ApothedocImportLib.Logic
                         {
                             Log.Error(">>> Skipping enrollment POST for PCM due to reported error");
                         }
+                    }
+
+                    // Post the allergy information
+                    if(allergies != null)
+                    {
+                        await PostAllergiesToClinic(allergies, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post the care sessions after we confirmed the patient ID in the destination clinic
@@ -412,6 +420,45 @@ namespace ApothedocImportLib.Logic
 
         }
 
+        public async Task<AllergyMedication> GetAllergyMedication(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient allergy medication from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/allergy-medication");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    AllergyMedicationWrapper wrapper = JsonConvert.DeserializeObject<AllergyMedicationWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient allergy medication");
+
+                    return wrapper.AllergiesMedications;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetAllergyMedication");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetAllergyMedication failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                return new AllergyMedication();
+            }
+
+        }
+
         public async Task<string?> PostPatientToClinic(Patient patient, string orgId, string clinicId, string authToken)
         {
             try
@@ -547,6 +594,42 @@ namespace ApothedocImportLib.Logic
             {
                 Log.Error($">>> PostEnrollmentsToClinic failed for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}.");
             }
+        }
+
+        public async Task PostAllergiesToClinic(AllergyMedication allergies, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post allergies to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, allergies: {JsonConvert.SerializeObject(allergies)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(allergies);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/allergy-medication", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted allergies for Patientid: {patientId}, Allergies: {allergies}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post allergies for Patientid: {patientId}, Allergies: {allergies}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostEnrollmentsToClinic failed for Patientid: {patientId}, Allergies: {JsonConvert.SerializeObject(allergies)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+            
         }
         #endregion
 

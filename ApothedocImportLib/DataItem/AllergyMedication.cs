@@ -12,8 +12,8 @@ namespace ApothedocImportLib.DataItem
         public string? Medications { get; set; }
     }
 
-    public class AllergyWrapper
+    public class AllergyMedicationWrapper
     {
-        public AllergyMedication? AllergyMedication { get; set; }
+        public AllergyMedication? AllergiesMedications { get; set; }
     }
 }

@@ -211,5 +211,17 @@ namespace ApothedocImportAppTestCase
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment, Formatting.Indented)}");
         }
+
+        [TestMethod]
+        public async Task TestGetAllergyMedication()
+        {
+            patientId = "3";
+            var allergyMedication = await logic.GetAllergyMedication(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+
+            Assert.IsNotNull(allergyMedication);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(allergyMedication)}");
+        }
     }
 }
