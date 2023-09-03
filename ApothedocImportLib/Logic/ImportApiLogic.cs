@@ -43,7 +43,14 @@ namespace ApothedocImportLib.Logic
                 ProviderMappingUtil providerMappingUtil = new();
                 ConfigUtil configUtil = new();
 
-                Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication,List<EmergencyContact>>> patientInfoDictionary = new();
+                Dictionary<
+                    Patient, 
+                    Tuple<List<CareSession>, 
+                    EnrollmentStatus, 
+                    AllergyMedication, 
+                    List<EmergencyContact>, 
+                    ContactInformation>
+                > patientInfoDictionary = new();
 
                 Log.Information($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
                 Log.Information($">>> Getting patient and provider information from source clinic...");
@@ -69,14 +76,15 @@ namespace ApothedocImportLib.Logic
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientAllergies = await GetAllergyMedication(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientEmergencyContacts = await GetEmergencyContacts(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientContactInformation = await GetContactInformation(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
-                    patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment, patientAllergies, patientEmergencyContacts));
+                    patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment, patientAllergies, patientEmergencyContacts, patientContactInformation));
                 }
 
                 // Just counting for logging...
                 int careSessionCount = 0;
                 int enrollmentCount = 0;
-                foreach (Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication, List<EmergencyContact>> patientInfoRecord in patientInfoDictionary.Values)
+                foreach (Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication, List<EmergencyContact>, ContactInformation> patientInfoRecord in patientInfoDictionary.Values)
                 {
                     careSessionCount += patientInfoRecord.Item1.Count;
 
@@ -99,6 +107,7 @@ namespace ApothedocImportLib.Logic
                     var enrollmentStatus = patientInfoRecord.Value.Item2;
                     var allergies = patientInfoRecord.Value.Item3;
                     var emergencyContacts = patientInfoRecord.Value.Item4;
+                    var contactInformation = patientInfoRecord.Value.Item5;
 
                     // Start with posting up the patient
                     var newPatientId = await PostPatientToClinic(patient, destOrgId, destClinicId, destAuthToken);
@@ -177,6 +186,12 @@ namespace ApothedocImportLib.Logic
                     if(emergencyContacts.Count > 0)
                     {
                         await PostEmergencyContactsToClinic(emergencyContacts, newPatientId, destOrgId, destClinicId, destAuthToken);
+                    }
+
+                    // Post contact information
+                    if(contactInformation != null)
+                    {
+                        await PostContactInformationToClinic(contactInformation, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post the care sessions after we confirmed the patient ID in the destination clinic
@@ -506,6 +521,45 @@ namespace ApothedocImportLib.Logic
 
         }
 
+        public async Task<ContactInformation> GetContactInformation(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient contact information from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/contact-information");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    ContactInformationWrapper wrapper = JsonConvert.DeserializeObject<ContactInformationWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient contact information");
+
+                    return wrapper.ContactInformation;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetContactInformation");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetContactInformation failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                return new();
+            }
+
+        }
+
         public async Task<string?> PostPatientToClinic(Patient patient, string orgId, string clinicId, string authToken)
         {
             try
@@ -710,7 +764,43 @@ namespace ApothedocImportLib.Logic
             }
             catch (Exception)
             {
-                Log.Error($">>> PostEmergencyContactToClinic failed for Patientid: {patientId}, Allergies: {JsonConvert.SerializeObject(emergencyContacts)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+                Log.Error($">>> PostEmergencyContactToClinic failed for Patientid: {patientId}, Emergency Contacts: {JsonConvert.SerializeObject(emergencyContacts)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+
+        }
+
+        public async Task PostContactInformationToClinic(ContactInformation contactInformation, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post contact information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, contact information: {JsonConvert.SerializeObject(contactInformation)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(contactInformation);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/contact-information", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted contact information for Patientid: {patientId}, Contact Information: {JsonConvert.SerializeObject(contactInformation)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post contact information for Patientid: {patientId}, Contact Information: {JsonConvert.SerializeObject(contactInformation)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostContactInformationToClinic failed for Patientid: {patientId}, Contact Information: {JsonConvert.SerializeObject(contactInformation)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
             }
 
         }
