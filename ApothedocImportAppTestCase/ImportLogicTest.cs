@@ -11,7 +11,7 @@ namespace ApothedocImportAppTestCase
     [TestClass]
     public class ImportLogicTest
     {
-        string patientId = "1740";
+        string patientId = "3";
         ImportApiLogic logic;
         ProviderMappingUtil providerMappingUtil;
         Config config;
@@ -182,24 +182,22 @@ namespace ApothedocImportAppTestCase
 
             var sourceEnrollment = new Enrollment()
             {
-                EnrollmentDate = "2023-02-06T00:00:00.000Z",
-                CancellationDate = null,
-                InformationSheet = "2023-02-06T00:00:00.000Z",
-                PatientAgreement = "2023-02-06T00:00:00.000Z",
-                VerbalAgreement = true,
-                PrimaryClinician = new Provider()
-                {
-                    Id = 30,
-                    FirstName = "Zaid",
-                    LastName = "Bhujwala"
-                },
-                EnrolledSameDayOfficeVisit = 0,
-                Specialist = new Provider()
-                {
-                    Id = 23,
-                    FirstName = "anish devtest",
-                    LastName = "b"
-                }
+              EnrollmentDate = "2022-10-27T19:00:00",
+              CancellationDate = "2022-10-26T19:00:00",
+              InformationSheet = "2022-10-27T19:00:00",
+              PatientAgreement = "2022-10-26T19:00:00",
+              VerbalAgreement = true,
+              PrimaryClinician = new Provider(){
+                Id = 1,
+                FirstName = "Anish",
+                LastName = "Bhatt"
+              },
+              Specialist = new Provider(){
+                Id = 2,
+                FirstName = "Dwyane",
+                LastName = "The Rock"
+              },
+              EnrolledSameDayOfficeVisit = 0
             };
 
             var targetProviderList = await logic.GetProviderList(config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken);

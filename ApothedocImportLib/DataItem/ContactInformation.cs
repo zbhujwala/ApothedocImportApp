@@ -17,7 +17,7 @@ namespace ApothedocImportLib.DataItem
         public string? Email { get; set; }
         public Dictionary<string, string>? ContactDays { get; set; }
         public Dictionary<string, string>? ContactTimes { get; set; }
-        public List<AltPhoneNumber> altPhones { get; set; } = new List<AltPhoneNumber>();
+        public List<AltPhoneNumber> altPhones { get; set; }
     }
     public class AltPhoneNumber
     {

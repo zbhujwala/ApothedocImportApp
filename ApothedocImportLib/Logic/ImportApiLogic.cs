@@ -48,7 +48,7 @@ namespace ApothedocImportLib.Logic
                     Tuple<List<CareSession>, 
                     EnrollmentStatus, 
                     AllergyMedication, 
-                    List<EmergencyContact>, 
+                    EmergencyContactWrapper, 
                     ContactInformation>
                 > patientInfoDictionary = new();
 
@@ -72,7 +72,7 @@ namespace ApothedocImportLib.Logic
                     {
                         patientCareSessions = await GetAllPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     }
-                    
+
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientAllergies = await GetAllergyMedication(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientEmergencyContacts = await GetEmergencyContacts(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
@@ -84,14 +84,14 @@ namespace ApothedocImportLib.Logic
                 // Just counting for logging...
                 int careSessionCount = 0;
                 int enrollmentCount = 0;
-                foreach (Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication, List<EmergencyContact>, ContactInformation> patientInfoRecord in patientInfoDictionary.Values)
+                foreach (Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication, EmergencyContactWrapper, ContactInformation> patientInfoRecord in patientInfoDictionary.Values)
                 {
                     careSessionCount += patientInfoRecord.Item1.Count;
 
-                    if (patientInfoRecord.Item2.Rpm == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2.Ccm == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2.Bhi == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2.Pcm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item2?.Rpm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item2?.Ccm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item2?.Bhi == true) enrollmentCount++;
+                    if (patientInfoRecord.Item2?.Pcm == true) enrollmentCount++;
                 }
 
                 Log.Information($">>> Successfully retrieved {sourcePatientList.Count} patients, {careSessionCount} care sessions, and {enrollmentCount} unique enrollments from OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}.");
@@ -103,11 +103,11 @@ namespace ApothedocImportLib.Logic
                 foreach (var patientInfoRecord in patientInfoDictionary)
                 {
                     var patient = patientInfoRecord.Key;
-                    var careSessions = patientInfoRecord.Value.Item1;
-                    var enrollmentStatus = patientInfoRecord.Value.Item2;
-                    var allergies = patientInfoRecord.Value.Item3;
-                    var emergencyContacts = patientInfoRecord.Value.Item4;
-                    var contactInformation = patientInfoRecord.Value.Item5;
+                    var careSessions = patientInfoRecord.Value?.Item1;
+                    var enrollmentStatus = patientInfoRecord.Value?.Item2;
+                    var allergies = patientInfoRecord.Value?.Item3;
+                    var emergencyContacts = patientInfoRecord.Value?.Item4;
+                    var contactInformation = patientInfoRecord.Value?.Item5;
 
                     // Start with posting up the patient
                     var newPatientId = await PostPatientToClinic(patient, destOrgId, destClinicId, destAuthToken);
@@ -123,7 +123,7 @@ namespace ApothedocImportLib.Logic
                     }
 
                     //// Post enrollment status
-                    if (enrollmentStatus.Rpm == true)
+                    if (enrollmentStatus?.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                         if (rpmEnrollmentDetails != null) 
@@ -136,7 +136,7 @@ namespace ApothedocImportLib.Logic
                             Log.Error(">>> Skipping enrollment POST for RPM due to reported error");
                         }
                     }
-                    if (enrollmentStatus.Ccm == true)
+                    if (enrollmentStatus?.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                         if(ccmEnrollmentDetails != null)
@@ -149,7 +149,7 @@ namespace ApothedocImportLib.Logic
                             Log.Error(">>> Skipping enrollment POST for CCM due to reported error");
                         }
                     }
-                    if (enrollmentStatus.Bhi == true)
+                    if (enrollmentStatus?.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                         if(bhiEnrollmentDetails != null)
@@ -162,7 +162,7 @@ namespace ApothedocImportLib.Logic
                             Log.Error(">>> Skipping enrollment POST for BHI due to reported error");
                         }
                     }
-                    if (enrollmentStatus.Pcm == true)
+                    if (enrollmentStatus?.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                         if(pcmEnrollmentDetails != null)
@@ -183,7 +183,7 @@ namespace ApothedocImportLib.Logic
                     }
 
                     // Post the emergency contact
-                    if(emergencyContacts.Count > 0)
+                    if(emergencyContacts?.EmergencyContacts.Count > 0)
                     {
                         await PostEmergencyContactsToClinic(emergencyContacts, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
@@ -288,12 +288,6 @@ namespace ApothedocImportLib.Logic
 
                     CareSessionWrapper wrapper = JsonConvert.DeserializeObject<CareSessionWrapper>(content);
 
-                    wrapper.CareSessions.ForEach(session =>
-                    {
-                        session.PerformedOn = DateTime.Parse(session.PerformedOn).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
-                        session.SubmittedAt = DateTime.Parse(session.SubmittedAt).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
-                    });
-
                     Log.Debug($">>> Successfully retrieved patient care sessions");
 
                     return wrapper;
@@ -377,15 +371,6 @@ namespace ApothedocImportLib.Logic
                     if (wrapper == null || wrapper.Enrollment == null)
                         throw new Exception($">>> No enrollment details found for patient with enrollment type: {enrollmentType}");
 
-                    if (wrapper.Enrollment.EnrollmentDate != null)
-                        wrapper.Enrollment.EnrollmentDate = DateTime.Parse(wrapper.Enrollment.EnrollmentDate).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
-                    if (wrapper.Enrollment.CancellationDate != null)
-                        wrapper.Enrollment.CancellationDate = DateTime.Parse(wrapper.Enrollment.CancellationDate).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
-                    if (wrapper.Enrollment.InformationSheet != null)
-                        wrapper.Enrollment.InformationSheet = DateTime.Parse(wrapper.Enrollment.InformationSheet).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
-                    if (wrapper.Enrollment.PatientAgreement != null)
-                        wrapper.Enrollment.PatientAgreement = DateTime.Parse(wrapper.Enrollment.PatientAgreement).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
-
                     Log.Debug($">>> Successfully retrieved patient enrollment details");
 
                     return wrapper.Enrollment;
@@ -443,6 +428,7 @@ namespace ApothedocImportLib.Logic
 
         }
 
+        public async Task<List>
         public async Task<AllergyMedication> GetAllergyMedication(string orgId, string clinicId, string patientId, string authToken)
         {
             try
@@ -482,7 +468,7 @@ namespace ApothedocImportLib.Logic
 
         }
 
-        public async Task<List<EmergencyContact>> GetEmergencyContacts(string orgId, string clinicId, string patientId, string authToken)
+        public async Task<EmergencyContactWrapper> GetEmergencyContacts(string orgId, string clinicId, string patientId, string authToken)
         {
             try
             {
@@ -506,7 +492,7 @@ namespace ApothedocImportLib.Logic
 
                     Log.Debug($">>> Successfully retrieved patient emergency contact");
 
-                    return wrapper.EmergencyContacts;
+                    return wrapper;
                 }
                 else
                 {
@@ -733,7 +719,7 @@ namespace ApothedocImportLib.Logic
             
         }
 
-        public async Task PostEmergencyContactsToClinic(List<EmergencyContact> emergencyContacts, string patientId, string orgId, string clinicId, string authToken)
+        public async Task PostEmergencyContactsToClinic(EmergencyContactWrapper emergencyContacts, string patientId, string orgId, string clinicId, string authToken)
         {
             try
             {
