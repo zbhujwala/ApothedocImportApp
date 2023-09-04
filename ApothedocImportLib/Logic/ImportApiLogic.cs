@@ -241,7 +241,7 @@ namespace ApothedocImportLib.Logic
                     // Massage the data a bit...
                     wrapper.Patients.ForEach(patient =>
                     {
-                        patient.DateOfBirth = DateTime.Parse(patient.DateOfBirth).ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss");
+                        patient.DateOfBirth = DateTime.Parse(patient.DateOfBirth).ToString("MM/dd/yyyy");
                     });
 
                     Log.Debug($">>> Successfully retrieved list of patients");
