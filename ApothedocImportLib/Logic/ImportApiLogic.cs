@@ -44,12 +44,15 @@ namespace ApothedocImportLib.Logic
                 ConfigUtil configUtil = new();
 
                 Dictionary<
-                    Patient, 
-                    Tuple<List<CareSession>, 
-                    EnrollmentStatus, 
-                    AllergyMedication, 
-                    EmergencyContactWrapper, 
-                    ContactInformation>
+                    Patient,
+                    Tuple<
+                        PatientDetails,
+                        List<CareSession>,
+                        EnrollmentStatus,
+                        AllergyMedication,
+                        EmergencyContactWrapper,
+                        ContactInformation
+                    >
                 > patientInfoDictionary = new();
 
                 Log.Information($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
@@ -73,25 +76,26 @@ namespace ApothedocImportLib.Logic
                         patientCareSessions = await GetAllPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     }
 
+                    var patientDetails = await GetPatientInfo(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientAllergies = await GetAllergyMedication(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientEmergencyContacts = await GetEmergencyContacts(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     var patientContactInformation = await GetContactInformation(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
-                    patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment, patientAllergies, patientEmergencyContacts, patientContactInformation));
+                    patientInfoDictionary.Add(patient, Tuple.Create(patientDetails, patientCareSessions, patientEnrollment, patientAllergies, patientEmergencyContacts, patientContactInformation));
                 }
 
                 // Just counting for logging...
                 int careSessionCount = 0;
                 int enrollmentCount = 0;
-                foreach (Tuple<List<CareSession>, EnrollmentStatus, AllergyMedication, EmergencyContactWrapper, ContactInformation> patientInfoRecord in patientInfoDictionary.Values)
+                foreach (Tuple<PatientDetails, List<CareSession>, EnrollmentStatus, AllergyMedication, EmergencyContactWrapper, ContactInformation> patientInfoRecord in patientInfoDictionary.Values)
                 {
-                    careSessionCount += patientInfoRecord.Item1.Count;
+                    careSessionCount += patientInfoRecord.Item2.Count;
 
-                    if (patientInfoRecord.Item2?.Rpm == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2?.Ccm == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2?.Bhi == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2?.Pcm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Rpm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Ccm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Bhi == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Pcm == true) enrollmentCount++;
                 }
 
                 Log.Information($">>> Successfully retrieved {sourcePatientList.Count} patients, {careSessionCount} care sessions, and {enrollmentCount} unique enrollments from OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}.");
@@ -103,11 +107,12 @@ namespace ApothedocImportLib.Logic
                 foreach (var patientInfoRecord in patientInfoDictionary)
                 {
                     var patient = patientInfoRecord.Key;
-                    var careSessions = patientInfoRecord.Value?.Item1;
-                    var enrollmentStatus = patientInfoRecord.Value?.Item2;
-                    var allergies = patientInfoRecord.Value?.Item3;
-                    var emergencyContacts = patientInfoRecord.Value?.Item4;
-                    var contactInformation = patientInfoRecord.Value?.Item5;
+                    var patientDetails = patientInfoRecord.Value?.Item1;
+                    var careSessions = patientInfoRecord.Value?.Item2;
+                    var enrollmentStatus = patientInfoRecord.Value?.Item3;
+                    var allergies = patientInfoRecord.Value?.Item4;
+                    var emergencyContacts = patientInfoRecord.Value?.Item5;
+                    var contactInformation = patientInfoRecord.Value?.Item6;
 
                     // Start with posting up the patient
                     var newPatientId = await PostPatientToClinic(patient, destOrgId, destClinicId, destAuthToken);
@@ -122,12 +127,18 @@ namespace ApothedocImportLib.Logic
 
                     }
 
-                    //// Post enrollment status
+                    // Post patient details
+                    if (patientDetails != null)
+                    {
+                        await PostPatientDetailsToClinic(patientDetails, newPatientId, destOrgId, destClinicId, destAuthToken);
+                    }
+
+                    // Post enrollment status
                     if (enrollmentStatus?.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if (rpmEnrollmentDetails != null) 
-                        {  
+                        if (rpmEnrollmentDetails != null)
+                        {
                             rpmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(rpmEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
                         }
@@ -139,7 +150,7 @@ namespace ApothedocImportLib.Logic
                     if (enrollmentStatus?.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if(ccmEnrollmentDetails != null)
+                        if (ccmEnrollmentDetails != null)
                         {
                             ccmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(ccmEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -152,7 +163,7 @@ namespace ApothedocImportLib.Logic
                     if (enrollmentStatus?.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if(bhiEnrollmentDetails != null)
+                        if (bhiEnrollmentDetails != null)
                         {
                             bhiEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(bhiEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -165,7 +176,7 @@ namespace ApothedocImportLib.Logic
                     if (enrollmentStatus?.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if(pcmEnrollmentDetails != null)
+                        if (pcmEnrollmentDetails != null)
                         {
                             pcmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(pcmEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -177,19 +188,19 @@ namespace ApothedocImportLib.Logic
                     }
 
                     // Post the allergy information
-                    if(allergies != null)
+                    if (allergies != null)
                     {
                         await PostAllergiesToClinic(allergies, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post the emergency contact
-                    if(emergencyContacts?.EmergencyContacts.Count > 0)
+                    if (emergencyContacts?.EmergencyContacts.Count > 0)
                     {
                         await PostEmergencyContactsToClinic(emergencyContacts, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post contact information
-                    if(contactInformation != null)
+                    if (contactInformation != null)
                     {
                         await PostContactInformationToClinic(contactInformation, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
@@ -215,6 +226,7 @@ namespace ApothedocImportLib.Logic
         #endregion
 
         #region API Request Functions
+        #region GET Requests
         public async Task<List<Patient>> GetPatientListForClinic(string orgId, string clinicId, string authToken)
         {
 
@@ -428,7 +440,43 @@ namespace ApothedocImportLib.Logic
 
         }
 
-        public async Task<List>
+        public async Task<PatientDetails> GetPatientInfo(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient information from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/details");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    PatientDetailsWrapper wrapper = JsonConvert.DeserializeObject<PatientDetailsWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient information");
+
+                    return wrapper.PatientDetails;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetPatientInfo");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetAllergyMedication failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                throw;
+            }
+        }
         public async Task<AllergyMedication> GetAllergyMedication(string orgId, string clinicId, string patientId, string authToken)
         {
             try
@@ -545,7 +593,9 @@ namespace ApothedocImportLib.Logic
             }
 
         }
+        #endregion
 
+        #region POST Requests
         public async Task<string?> PostPatientToClinic(Patient patient, string orgId, string clinicId, string authToken)
         {
             try
@@ -633,7 +683,7 @@ namespace ApothedocImportLib.Logic
 
                 if (resp.StatusCode == HttpStatusCode.OK)
                 {
-                     Log.Debug($">>> Successfully posted care session for patient");
+                    Log.Debug($">>> Successfully posted care session for patient");
                 }
                 else
                 {
@@ -716,7 +766,7 @@ namespace ApothedocImportLib.Logic
             {
                 Log.Error($">>> PostAllergiesToClinic failed for Patientid: {patientId}, Allergies: {JsonConvert.SerializeObject(allergies)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
             }
-            
+
         }
 
         public async Task PostEmergencyContactsToClinic(EmergencyContactWrapper emergencyContacts, string patientId, string orgId, string clinicId, string authToken)
@@ -790,6 +840,43 @@ namespace ApothedocImportLib.Logic
             }
 
         }
+
+        public async Task PostPatientDetailsToClinic(PatientDetails patientDetails, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post patient information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, patient information: {JsonConvert.SerializeObject(patientDetails)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(patientDetails);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/details", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted patient information for Patientid: {patientId}, Patient Information: {JsonConvert.SerializeObject(patientDetails)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post patient information for Patientid: {patientId}, Patient Information: {JsonConvert.SerializeObject(patientDetails)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostPatientInformationToClinic failed for Patientid: {patientId}, Patient Information: {JsonConvert.SerializeObject(patientDetails)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+
+        }
+        #endregion
         #endregion
 
         #region Helper Functions
