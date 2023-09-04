@@ -1,9 +1,9 @@
 ﻿{
   "resourceApi": "https://dev.apothedoc.com/api/",
-  "sourceAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkzNzc3OTUzLCJleHAiOjE2OTM4MjExNTN9.7MwXTh7uwZiLgT48Lkn4OlzJc73uJFQH7-qHx8dh9HQ",
+  "sourceAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MSwidXNlciI6InphaWRAc3luZXJncnguY29tIiwiaWF0IjoxNjkzODM5NTIyLCJleHAiOjE2OTM4ODI3MjJ9.Kt85MdLkr2HdRrISnuP9ac95i5CvhC4HnHMScMNDQVc",
   "sourceOrgId": "1",
   "sourceClinicId": "1",
-  "targetAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkzNzc4MTYyLCJleHAiOjE2OTM4MjEzNjJ9.dWeRy2bljHuwlzc3Zy1dx2VvaK0q1VJqtNkJsYj82aQ",
+  "targetAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvcmdJZCI6MiwidXNlciI6ImJodWp3YWxhLnphaWRAZ21haWwuY29tIiwiaWF0IjoxNjkzODM5NTM0LCJleHAiOjE2OTM4ODI3MzR9.KmaZSj85jP9PKytqEtQk_7ZU_v0iUzjkBkaKG4a9850",
   "targetOrgId": "2",
   "targetClinicId": "22",
   "skipCareSessionImport": true,
@@ -35,6 +35,10 @@
     {
       "sourceId": 23,
       "targetId": 29
+    },
+    {
+      "sourceId": 25,
+      "targetId": 28
     },
     {
       "sourceId": 26,

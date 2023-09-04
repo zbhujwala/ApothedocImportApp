@@ -134,58 +134,34 @@ namespace ApothedocImportLib.Logic
                     }
 
                     // Post enrollment status
-                    if (enrollmentStatus?.Rpm == true)
+                    var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    if (rpmEnrollmentDetails?.EnrollmentDate != null)
                     {
-                        var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if (rpmEnrollmentDetails != null)
-                        {
-                            rpmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(rpmEnrollmentDetails, targetProvidersList, mappings);
-                            await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
-                        }
-                        else
-                        {
-                            Log.Error(">>> Skipping enrollment POST for RPM due to reported error");
-                        }
+                        rpmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(rpmEnrollmentDetails, targetProvidersList, mappings);
+                        await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
-                    if (enrollmentStatus?.Ccm == true)
+
+                    var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    if (ccmEnrollmentDetails?.EnrollmentDate != null)
                     {
-                        var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if (ccmEnrollmentDetails != null)
-                        {
-                            ccmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(ccmEnrollmentDetails, targetProvidersList, mappings);
-                            await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
-                        }
-                        else
-                        {
-                            Log.Error(">>> Skipping enrollment POST for CCM due to reported error");
-                        }
+                        ccmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(ccmEnrollmentDetails, targetProvidersList, mappings);
+                        await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
-                    if (enrollmentStatus?.Bhi == true)
+
+                    var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    if (bhiEnrollmentDetails?.EnrollmentDate != null)
                     {
-                        var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if (bhiEnrollmentDetails != null)
-                        {
-                            bhiEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(bhiEnrollmentDetails, targetProvidersList, mappings);
-                            await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
-                        }
-                        else
-                        {
-                            Log.Error(">>> Skipping enrollment POST for BHI due to reported error");
-                        }
+                        bhiEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(bhiEnrollmentDetails, targetProvidersList, mappings);
+                        await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
-                    if (enrollmentStatus?.Pcm == true)
-                    {
-                        var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if (pcmEnrollmentDetails != null)
-                        {
-                            pcmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(pcmEnrollmentDetails, targetProvidersList, mappings);
-                            await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
-                        }
-                        else
-                        {
-                            Log.Error(">>> Skipping enrollment POST for PCM due to reported error");
-                        }
-                    }
+
+                    // PCM not supported yet
+                    //var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    //if (pcmEnrollmentDetails?.EnrollmentDate != null)
+                    //{
+                    //    pcmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(pcmEnrollmentDetails, targetProvidersList, mappings);
+                    //    await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
+                    //}
 
                     // Post the allergy information
                     if (allergies != null)

@@ -104,6 +104,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestGetPatientEnrollmentDetailsBHI()
         {
+            patientId = "2";
             // Get CCM
             var enrollmentDetails = await logic.GetPatientEnrollmentDetails("bhi", config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
@@ -116,6 +117,7 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestGetPatientEnrollmentDetailsRPM()
         {
+            patientId = "2";
             // Get CCM
             var enrollmentDetails = await logic.GetPatientEnrollmentDetails("rpm", config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
