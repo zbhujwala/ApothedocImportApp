@@ -43,7 +43,17 @@ namespace ApothedocImportLib.Logic
                 ProviderMappingUtil providerMappingUtil = new();
                 ConfigUtil configUtil = new();
 
-                Dictionary<Patient, Tuple<List<CareSession>, EnrollmentStatus>> patientInfoDictionary = new();
+                Dictionary<
+                    Patient,
+                    Tuple<
+                        PatientDetails,
+                        List<CareSession>,
+                        EnrollmentStatus,
+                        AllergyMedication,
+                        EmergencyContactWrapper,
+                        ContactInformation
+                    >
+                > patientInfoDictionary = new();
 
                 Log.Information($">>> TransferClinicData called for OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}");
                 Log.Information($">>> Getting patient and provider information from source clinic...");
@@ -63,25 +73,29 @@ namespace ApothedocImportLib.Logic
                     var patientCareSessions = new List<CareSession>();
                     if (!skipCareSessionImport)
                     {
-                        patientCareSessions = await GetPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                        patientCareSessions = await GetAllPatientCareSessions(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
                     }
-                    
-                    var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
 
-                    patientInfoDictionary.Add(patient, Tuple.Create(patientCareSessions, patientEnrollment));
+                    var patientDetails = await GetPatientInfo(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientEnrollment = await GetPatientEnrollmentStatus(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientAllergies = await GetAllergyMedication(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientEmergencyContacts = await GetEmergencyContacts(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+                    var patientContactInformation = await GetContactInformation(sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
+
+                    patientInfoDictionary.Add(patient, Tuple.Create(patientDetails, patientCareSessions, patientEnrollment, patientAllergies, patientEmergencyContacts, patientContactInformation));
                 }
 
                 // Just counting for logging...
                 int careSessionCount = 0;
                 int enrollmentCount = 0;
-                foreach (Tuple<List<CareSession>, EnrollmentStatus> patientInfoRecord in patientInfoDictionary.Values)
+                foreach (Tuple<PatientDetails, List<CareSession>, EnrollmentStatus, AllergyMedication, EmergencyContactWrapper, ContactInformation> patientInfoRecord in patientInfoDictionary.Values)
                 {
-                    careSessionCount += patientInfoRecord.Item1.Count;
+                    careSessionCount += patientInfoRecord.Item2.Count;
 
-                    if (patientInfoRecord.Item2.Rpm == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2.Ccm == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2.Bhi == true) enrollmentCount++;
-                    if (patientInfoRecord.Item2.Pcm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Rpm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Ccm == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Bhi == true) enrollmentCount++;
+                    if (patientInfoRecord.Item3?.Pcm == true) enrollmentCount++;
                 }
 
                 Log.Information($">>> Successfully retrieved {sourcePatientList.Count} patients, {careSessionCount} care sessions, and {enrollmentCount} unique enrollments from OrgId: {sourceOrgId} and ClinicId: {sourceClinicId}.");
@@ -93,8 +107,12 @@ namespace ApothedocImportLib.Logic
                 foreach (var patientInfoRecord in patientInfoDictionary)
                 {
                     var patient = patientInfoRecord.Key;
-                    var careSessions = patientInfoRecord.Value.Item1;
-                    var enrollmentStatus = patientInfoRecord.Value.Item2;
+                    var patientDetails = patientInfoRecord.Value?.Item1;
+                    var careSessions = patientInfoRecord.Value?.Item2;
+                    var enrollmentStatus = patientInfoRecord.Value?.Item3;
+                    var allergies = patientInfoRecord.Value?.Item4;
+                    var emergencyContacts = patientInfoRecord.Value?.Item5;
+                    var contactInformation = patientInfoRecord.Value?.Item6;
 
                     // Start with posting up the patient
                     var newPatientId = await PostPatientToClinic(patient, destOrgId, destClinicId, destAuthToken);
@@ -109,12 +127,18 @@ namespace ApothedocImportLib.Logic
 
                     }
 
-                    //// Post enrollment status
-                    if (enrollmentStatus.Rpm == true)
+                    // Post patient details
+                    if (patientDetails != null)
+                    {
+                        await PostPatientDetailsToClinic(patientDetails, newPatientId, destOrgId, destClinicId, destAuthToken);
+                    }
+
+                    // Post enrollment status
+                    if (enrollmentStatus?.Rpm == true)
                     {
                         var rpmEnrollmentDetails = await GetPatientEnrollmentDetails("rpm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if (rpmEnrollmentDetails != null) 
-                        {  
+                        if (rpmEnrollmentDetails != null)
+                        {
                             rpmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(rpmEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(rpmEnrollmentDetails, "rpm", newPatientId, destOrgId, destClinicId, destAuthToken);
                         }
@@ -123,10 +147,10 @@ namespace ApothedocImportLib.Logic
                             Log.Error(">>> Skipping enrollment POST for RPM due to reported error");
                         }
                     }
-                    if (enrollmentStatus.Ccm == true)
+                    if (enrollmentStatus?.Ccm == true)
                     {
                         var ccmEnrollmentDetails = await GetPatientEnrollmentDetails("ccm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if(ccmEnrollmentDetails != null)
+                        if (ccmEnrollmentDetails != null)
                         {
                             ccmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(ccmEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(ccmEnrollmentDetails, "ccm", newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -136,10 +160,10 @@ namespace ApothedocImportLib.Logic
                             Log.Error(">>> Skipping enrollment POST for CCM due to reported error");
                         }
                     }
-                    if (enrollmentStatus.Bhi == true)
+                    if (enrollmentStatus?.Bhi == true)
                     {
                         var bhiEnrollmentDetails = await GetPatientEnrollmentDetails("bhi", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if(bhiEnrollmentDetails != null)
+                        if (bhiEnrollmentDetails != null)
                         {
                             bhiEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(bhiEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(bhiEnrollmentDetails, "bhi", newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -149,10 +173,10 @@ namespace ApothedocImportLib.Logic
                             Log.Error(">>> Skipping enrollment POST for BHI due to reported error");
                         }
                     }
-                    if (enrollmentStatus.Pcm == true)
+                    if (enrollmentStatus?.Pcm == true)
                     {
                         var pcmEnrollmentDetails = await GetPatientEnrollmentDetails("pcm", sourceOrgId, sourceClinicId, patient.Id.ToString(), sourceAuthToken);
-                        if(pcmEnrollmentDetails != null)
+                        if (pcmEnrollmentDetails != null)
                         {
                             pcmEnrollmentDetails = providerMappingUtil.MapEnrollmentProviderInfo(pcmEnrollmentDetails, targetProvidersList, mappings);
                             await PostEnrollmentsToClinic(pcmEnrollmentDetails, "pcm", newPatientId, destOrgId, destClinicId, destAuthToken);
@@ -161,6 +185,24 @@ namespace ApothedocImportLib.Logic
                         {
                             Log.Error(">>> Skipping enrollment POST for PCM due to reported error");
                         }
+                    }
+
+                    // Post the allergy information
+                    if (allergies != null)
+                    {
+                        await PostAllergiesToClinic(allergies, newPatientId, destOrgId, destClinicId, destAuthToken);
+                    }
+
+                    // Post the emergency contact
+                    if (emergencyContacts?.EmergencyContacts.Count > 0)
+                    {
+                        await PostEmergencyContactsToClinic(emergencyContacts, newPatientId, destOrgId, destClinicId, destAuthToken);
+                    }
+
+                    // Post contact information
+                    if (contactInformation != null)
+                    {
+                        await PostContactInformationToClinic(contactInformation, newPatientId, destOrgId, destClinicId, destAuthToken);
                     }
 
                     // Post the care sessions after we confirmed the patient ID in the destination clinic
@@ -184,6 +226,7 @@ namespace ApothedocImportLib.Logic
         #endregion
 
         #region API Request Functions
+        #region GET Requests
         public async Task<List<Patient>> GetPatientListForClinic(string orgId, string clinicId, string authToken)
         {
 
@@ -229,7 +272,7 @@ namespace ApothedocImportLib.Logic
             }
         }
 
-        public async Task<List<CareSession>> GetPatientCareSessions(string orgId, string clinicId, string patientId, string sourceAuthToken)
+        public async Task<CareSessionWrapper> GetPatientCareSessions(string orgId, string clinicId, string patientId, int pageNumber, string authToken)
         {
             try
             {
@@ -241,9 +284,9 @@ namespace ApothedocImportLib.Logic
                 Log.Debug($">>> Attempting to retrieve care session for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
 
                 using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceAuthToken);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
 
-                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/care-sessions");
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/care-sessions?page={pageNumber}&type=total");
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -257,15 +300,9 @@ namespace ApothedocImportLib.Logic
 
                     CareSessionWrapper wrapper = JsonConvert.DeserializeObject<CareSessionWrapper>(content);
 
-                    wrapper.CareSessions.ForEach(session =>
-                    {
-                        session.PerformedOn = DateTime.Parse(session.PerformedOn).ToString("MM/dd/yyyy");
-                        session.SubmittedAt = DateTime.Parse(session.SubmittedAt).ToString("MM/dd/yyyy");
-                    });
-
                     Log.Debug($">>> Successfully retrieved patient care sessions");
 
-                    return wrapper.CareSessions;
+                    return wrapper;
                 }
                 else
                 {
@@ -275,7 +312,7 @@ namespace ApothedocImportLib.Logic
             catch (Exception)
             {
                 Log.Error($">>> GetPatientCareSessions failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
-                return new List<CareSession>();
+                return new();
             }
         }
 
@@ -346,15 +383,6 @@ namespace ApothedocImportLib.Logic
                     if (wrapper == null || wrapper.Enrollment == null)
                         throw new Exception($">>> No enrollment details found for patient with enrollment type: {enrollmentType}");
 
-                    if (wrapper.Enrollment.EnrollmentDate != null)
-                        wrapper.Enrollment.EnrollmentDate = DateTime.Parse(wrapper.Enrollment.EnrollmentDate).ToString("MM/dd/yyyy");
-                    if (wrapper.Enrollment.CancellationDate != null)
-                        wrapper.Enrollment.CancellationDate = DateTime.Parse(wrapper.Enrollment.CancellationDate).ToString("MM/dd/yyyy");
-                    if (wrapper.Enrollment.InformationSheet != null)
-                        wrapper.Enrollment.InformationSheet = DateTime.Parse(wrapper.Enrollment.InformationSheet).ToString("MM/dd/yyyy");
-                    if (wrapper.Enrollment.PatientAgreement != null)
-                        wrapper.Enrollment.PatientAgreement = DateTime.Parse(wrapper.Enrollment.PatientAgreement).ToString("MM/dd/yyyy");
-
                     Log.Debug($">>> Successfully retrieved patient enrollment details");
 
                     return wrapper.Enrollment;
@@ -412,6 +440,162 @@ namespace ApothedocImportLib.Logic
 
         }
 
+        public async Task<PatientDetails> GetPatientInfo(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient information from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/details");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    PatientDetailsWrapper wrapper = JsonConvert.DeserializeObject<PatientDetailsWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient information");
+
+                    return wrapper.PatientDetails;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetPatientInfo");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetAllergyMedication failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                throw;
+            }
+        }
+        public async Task<AllergyMedication> GetAllergyMedication(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient allergy medication from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/allergy-medication");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    AllergyMedicationWrapper wrapper = JsonConvert.DeserializeObject<AllergyMedicationWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient allergy medication");
+
+                    return wrapper.AllergiesMedications;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetAllergyMedication");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetAllergyMedication failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                return new AllergyMedication();
+            }
+
+        }
+
+        public async Task<EmergencyContactWrapper> GetEmergencyContacts(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient emergency contact from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/emergency-contact");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    EmergencyContactWrapper wrapper = JsonConvert.DeserializeObject<EmergencyContactWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient emergency contact");
+
+                    return wrapper;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetEmergencyContact");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetEmergencyContact failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                return new();
+            }
+
+        }
+
+        public async Task<ContactInformation> GetContactInformation(string orgId, string clinicId, string patientId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to retrieve patient contact information from orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+
+                HttpResponseMessage response = await client.GetAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/contact-information");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    JsonSerializerOptions options = new()
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    ContactInformationWrapper wrapper = JsonConvert.DeserializeObject<ContactInformationWrapper>(content);
+
+                    Log.Debug($">>> Successfully retrieved patient contact information");
+
+                    return wrapper.ContactInformation;
+                }
+                else
+                {
+                    throw new Exception($">>> Non-success HTTP Response code for GetContactInformation");
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> GetContactInformation failed for orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}.");
+                return new();
+            }
+
+        }
+        #endregion
+
+        #region POST Requests
         public async Task<string?> PostPatientToClinic(Patient patient, string orgId, string clinicId, string authToken)
         {
             try
@@ -499,7 +683,7 @@ namespace ApothedocImportLib.Logic
 
                 if (resp.StatusCode == HttpStatusCode.OK)
                 {
-                     Log.Debug($">>> Successfully posted care session for patient");
+                    Log.Debug($">>> Successfully posted care session for patient");
                 }
                 else
                 {
@@ -548,6 +732,192 @@ namespace ApothedocImportLib.Logic
                 Log.Error($">>> PostEnrollmentsToClinic failed for Patientid: {patientId}, Enrollment Type: {enrollmentType}, OrgId: {orgId}, and ClinicId: {clinicId}.");
             }
         }
+
+        public async Task PostAllergiesToClinic(AllergyMedication allergies, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post allergies to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, allergies: {JsonConvert.SerializeObject(allergies)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(allergies);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/allergy-medication", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted allergies for Patientid: {patientId}, Allergies: {allergies}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post allergies for Patientid: {patientId}, Allergies: {allergies}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostAllergiesToClinic failed for Patientid: {patientId}, Allergies: {JsonConvert.SerializeObject(allergies)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+
+        }
+
+        public async Task PostEmergencyContactsToClinic(EmergencyContactWrapper emergencyContacts, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post emergency contacts to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, emergency contacts: {JsonConvert.SerializeObject(emergencyContacts)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(emergencyContacts);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/emergency-contact", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted emergency contacts for Patientid: {patientId}, Emergency Contacts: {JsonConvert.SerializeObject(emergencyContacts)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post emergency contacts for Patientid: {patientId}, Emergency Contacts: {JsonConvert.SerializeObject(emergencyContacts)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostEmergencyContactToClinic failed for Patientid: {patientId}, Emergency Contacts: {JsonConvert.SerializeObject(emergencyContacts)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+
+        }
+
+        public async Task PostContactInformationToClinic(ContactInformation contactInformation, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post contact information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, contact information: {JsonConvert.SerializeObject(contactInformation)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(contactInformation);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/contact-information", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted contact information for Patientid: {patientId}, Contact Information: {JsonConvert.SerializeObject(contactInformation)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post contact information for Patientid: {patientId}, Contact Information: {JsonConvert.SerializeObject(contactInformation)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostContactInformationToClinic failed for Patientid: {patientId}, Contact Information: {JsonConvert.SerializeObject(contactInformation)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+
+        }
+
+        public async Task PostPatientDetailsToClinic(PatientDetails patientDetails, string patientId, string orgId, string clinicId, string authToken)
+        {
+            try
+            {
+                Log.Debug($">>> Attempting to post patient information to orgId: {orgId}, clinicId: {clinicId}, patientId: {patientId}, patient information: {JsonConvert.SerializeObject(patientDetails)}");
+
+                using HttpClient client = new(new RetryHandler(new HttpClientHandler()));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                var json = JsonConvert.SerializeObject(patientDetails);
+
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                HttpResponseMessage resp = await client.PostAsync(_resourceApi + $"org-id/{orgId}/clinic-id/{clinicId}/patient/{patientId}/details", content);
+
+                if (resp.StatusCode == HttpStatusCode.OK)
+                {
+                    Log.Debug($">>> Successfully posted patient information for Patientid: {patientId}, Patient Information: {JsonConvert.SerializeObject(patientDetails)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                }
+                else
+                {
+                    Log.Error($">>> Failed to post patient information for Patientid: {patientId}, Patient Information: {JsonConvert.SerializeObject(patientDetails)}, OrgId: {orgId}, and ClinicId: {clinicId}");
+                    Log.Error(resp.StatusCode.ToString());
+                    Log.Error(resp.Content.ReadAsStringAsync().Result.ToString());
+                }
+            }
+            catch (Exception)
+            {
+                Log.Error($">>> PostPatientInformationToClinic failed for Patientid: {patientId}, Patient Information: {JsonConvert.SerializeObject(patientDetails)}, OrgId: {orgId}, and ClinicId: {clinicId}.");
+            }
+
+        }
+        #endregion
+        #endregion
+
+        #region Helper Functions
+
+        public async Task<List<CareSession>> GetAllPatientCareSessions(string orgId, string clinicId, string patientId, string authToken)
+        {
+            List<CareSession> allPatientCareSessions = new();
+            try
+            {
+                var allCareSessionsRetreived = false;
+                int pageNumber = 1;
+
+                var careSessionWrapper = await GetPatientCareSessions(orgId, clinicId, patientId, pageNumber, authToken);
+
+                var totalCareSessionCount = careSessionWrapper.CareMetaData.Counts.Total;
+                allPatientCareSessions = allPatientCareSessions.Concat(careSessionWrapper.CareSessions).ToList();
+
+                if (totalCareSessionCount == allPatientCareSessions.Count)
+                    return allPatientCareSessions;
+
+                while (!allCareSessionsRetreived)
+                {
+                    careSessionWrapper = await GetPatientCareSessions(orgId, clinicId, patientId, ++pageNumber, authToken);
+                    allPatientCareSessions = allPatientCareSessions.Concat(careSessionWrapper.CareSessions).ToList();
+
+                    if (allPatientCareSessions.Count == totalCareSessionCount)
+                        allCareSessionsRetreived = true;
+
+                }
+
+                return allPatientCareSessions;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($">>> Unable to retrieve all patient care sessions");
+                Log.Warning(ex.Message);
+                Log.Warning($">>> Skipping Care Session import for patient id: {patientId}");
+            }
+            return new();
+        }
+
         #endregion
     }
 }

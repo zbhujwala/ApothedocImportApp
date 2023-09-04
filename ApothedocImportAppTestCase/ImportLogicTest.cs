@@ -11,7 +11,7 @@ namespace ApothedocImportAppTestCase
     [TestClass]
     public class ImportLogicTest
     {
-        string patientId = "1740";
+        string patientId = "3";
         ImportApiLogic logic;
         ProviderMappingUtil providerMappingUtil;
         Config config;
@@ -53,11 +53,25 @@ namespace ApothedocImportAppTestCase
         [TestMethod]
         public async Task TestGetPatientCareSessions()
         {
+            patientId = "3";
+            var careSessions = await logic.GetPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, 1, config.SourceAuthToken);
+
+            Assert.IsTrue(careSessions.CareSessions.Count > 0);
+
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+            Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
+        }
+
+        [TestMethod]
+        public async Task TestGetAllPatientCareSessions()
+        {
             patientId = "1";
-            var careSessions = await logic.GetPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+            var careSessions = await logic.GetAllPatientCareSessions(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
 
+            Console.WriteLine($"Care Session Count: {careSessions.Count}");
             Assert.IsTrue(careSessions.Count > 0);
-
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(careSessions)}");
@@ -168,24 +182,22 @@ namespace ApothedocImportAppTestCase
 
             var sourceEnrollment = new Enrollment()
             {
-                EnrollmentDate = "2023-02-06T00:00:00.000Z",
-                CancellationDate = null,
-                InformationSheet = "2023-02-06T00:00:00.000Z",
-                PatientAgreement = "2023-02-06T00:00:00.000Z",
-                VerbalAgreement = true,
-                PrimaryClinician = new Provider()
-                {
-                    Id = 30,
-                    FirstName = "Zaid",
-                    LastName = "Bhujwala"
-                },
-                EnrolledSameDayOfficeVisit = 0,
-                Specialist = new Provider()
-                {
-                    Id = 23,
-                    FirstName = "anish devtest",
-                    LastName = "b"
-                }
+              EnrollmentDate = "2022-10-27T19:00:00",
+              CancellationDate = "2022-10-26T19:00:00",
+              InformationSheet = "2022-10-27T19:00:00",
+              PatientAgreement = "2022-10-26T19:00:00",
+              VerbalAgreement = true,
+              PrimaryClinician = new Provider(){
+                Id = 1,
+                FirstName = "Anish",
+                LastName = "Bhatt"
+              },
+              Specialist = new Provider(){
+                Id = 2,
+                FirstName = "Dwyane",
+                LastName = "The Rock"
+              },
+              EnrolledSameDayOfficeVisit = 0
             };
 
             var targetProviderList = await logic.GetProviderList(config.TargetOrgId, config.TargetClinicId, config.TargetAuthToken);
@@ -196,6 +208,54 @@ namespace ApothedocImportAppTestCase
 
             Console.WriteLine($"Response:");
             Console.WriteLine($"{JsonConvert.SerializeObject(transformedEnrollment, Formatting.Indented)}");
+        }
+
+        [TestMethod]
+        public async Task TestGetAllergyMedication()
+        {
+            patientId = "3";
+            var allergyMedication = await logic.GetAllergyMedication(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+
+            Assert.IsNotNull(allergyMedication);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(allergyMedication)}");
+        }
+
+        [TestMethod]
+        public async Task TestGetEmergencyContact()
+        {
+            patientId = "3";
+            var emergencyContacts = await logic.GetEmergencyContacts(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+
+            Assert.IsNotNull(emergencyContacts);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(emergencyContacts)}");
+        }
+
+        [TestMethod]
+        public async Task TestGetContactInformation()
+        {
+            patientId = "3";
+            var contactInfo = await logic.GetContactInformation(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+
+            Assert.IsNotNull(contactInfo);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(contactInfo)}");
+        }
+
+        [TestMethod]
+        public async Task TestGetPatientDetails()
+        {
+            patientId = "3";
+            var contactInfo = await logic.GetPatientInfo(config.SourceOrgId, config.SourceClinicId, patientId, config.SourceAuthToken);
+
+            Assert.IsNotNull(contactInfo);
+
+            Console.WriteLine($"Response:");
+            Console.WriteLine($"{JsonConvert.SerializeObject(contactInfo)}");
         }
     }
 }
